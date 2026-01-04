@@ -1,9 +1,9 @@
 import { Text, View } from "react-native";
 
-export default function ExploreScreen() {
+export default function Recent() {
   return (
     <View>
-      <Text>Explore</Text>
+      <Text>Recent</Text>
     </View>
   );
 }

@@ -11,10 +11,6 @@ import { Provider } from "react-redux";
 import "../global.css";
 import { useColorScheme } from "../hooks/use-color-scheme";
 
-export const unstable_settings = {
-  anchor: "(tabs)",
-};
-
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
@@ -22,8 +18,14 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <Provider store={store}>
         <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: true, title: "Explore" }} />
-          {/* <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} /> */}
+          <Stack.Screen
+            name="(auth)"
+            options={{ headerShown: true, title: "Login" }}
+          />
+          <Stack.Screen
+            name="(tabs)"
+            options={{ headerShown: false, title: "Explore" }}
+          />
         </Stack>
         <StatusBar style="auto" />
       </Provider>
