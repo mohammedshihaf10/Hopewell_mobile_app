@@ -4,8 +4,6 @@ import { Platform, View } from "react-native";
 import { HapticTab } from "components/haptic-tab";
 import { IconName } from "components/ui/icon-names";
 import { IconSymbol } from "components/ui/icon-symbol";
-import { Colors } from "constants/theme";
-import { useColorScheme } from "hooks/use-color-scheme";
 
 /* ---------------------------------------------
  * Static tab icon (no animation)
@@ -73,8 +71,8 @@ function QRFloatingButton({ color }: { color: string }) {
  * Tabs layout (DEFAULT EXPORT)
  * ------------------------------------------- */
 export default function TabLayout() {
-  const scheme = useColorScheme();
-  const theme = Colors[scheme ?? "light"];
+  const tabAccent = "#2EC6C9";
+  const tabInactive = "#8B97B2";
 
   return (
     <Tabs
@@ -83,8 +81,8 @@ export default function TabLayout() {
         tabBarShowLabel: false,
         tabBarButton: HapticTab,
 
-        tabBarActiveTintColor: theme.tint,
-        tabBarInactiveTintColor: "#8A8FAD",
+        tabBarActiveTintColor: tabAccent,
+        tabBarInactiveTintColor: tabInactive,
 
         tabBarStyle: {
           position: "absolute",
@@ -93,18 +91,20 @@ export default function TabLayout() {
           right: 20,
           height: 64,
           borderRadius: 32,
-          backgroundColor: "rgba(20, 24, 40, 0.9)",
+          backgroundColor: "#FFFFFF",
           borderTopWidth: 0,
+          borderWidth: 1,
+          borderColor: "rgba(15, 23, 42, 0.08)",
 
           ...(Platform.OS === "ios"
             ? {
-                shadowColor: "#000",
-                shadowOpacity: 0.25,
-                shadowRadius: 20,
-                shadowOffset: { width: 0, height: 10 },
+                shadowColor: "#0B2A5E",
+                shadowOpacity: 0.12,
+                shadowRadius: 18,
+                shadowOffset: { width: 0, height: 8 },
               }
             : {
-                elevation: 20,
+                elevation: 6,
               }),
         },
 
@@ -123,7 +123,7 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="alerts"
+        name="notification"
         options={{
           tabBarIcon: ({ color, focused }) => (
             <TabIcon focused={focused} color={color} name="bell.fill" />
@@ -135,7 +135,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="qr"
         options={{
-          tabBarIcon: () => <QRFloatingButton color={theme.tint} />,
+          tabBarIcon: () => <QRFloatingButton color={tabAccent} />,
         }}
       />
 
@@ -152,7 +152,7 @@ export default function TabLayout() {
         name="filters"
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon focused={focused} color={color} name="bag.fill" />
+            <TabIcon focused={focused} color={color} name="filter.fill" />
           ),
         }}
       />

@@ -12,6 +12,8 @@ const MAPPING: Record<IconName, MaterialIconName> = {
   "qrcode": "qr-code",
   "clock.fill": "access-time",
   "bag.fill": "shopping-bag",
+  "filter.fill": "filter-alt",
+  "charger.fill": "ev-station",
 
   "house.fill": "home",
   "paperplane.fill": "send",

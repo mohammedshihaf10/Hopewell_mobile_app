@@ -1,202 +1,182 @@
-import { useRef, useState } from "react";
+import { Camera,CameraView } from "expo-camera";
+import * as ImagePicker from "expo-image-picker";
+import { useEffect, useState } from "react";
 import {
-  Pressable,
+  Alert,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
-import MapView, { UrlTile } from "react-native-maps";
 
-const GOOGLE_MAPS_API_KEY = "YOUR_GOOGLE_MAPS_API_KEY";
+export default function QRScreen() {
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [scanned, setScanned] = useState(false);
+  const [chargerId, setChargerId] = useState("");
 
-export default function MapScreen() {
-  const mapRef = useRef<MapView>(null);
-
-  const [walletBalance] = useState(0);
-  const [filters, setFilters] = useState({
-    ac: false,
-    dc: false,
-    available: false,
-  });
-
-  const toggleFilter = (key: keyof typeof filters) => {
-    setFilters((prev) => ({ ...prev, [key]: !prev[key] }));
+  /* ---------------- Permissions ---------------- */
+useEffect(() => {
+  const getPermissions = async () => {
+    const { status } = await Camera.requestCameraPermissionsAsync();
+    setHasPermission(status === 'granted');
   };
+
+  getPermissions();
+}, []);
+
+
+  /* ---------------- QR Scan ---------------- */
+  const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
+    setScanned(true);
+    alert(`Bar code with type ${type} and data ${data} has been scanned!`);
+  };
+
+  /* ---------------- Upload QR Image ---------------- */
+  const pickQRImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      Alert.alert(
+        "QR uploaded",
+        "Image selected. Decode via backend or QR SDK."
+      );
+    }
+  };
+
+  /* ---------------- Proceed ---------------- */
+  const handleProceed = () => {
+    if (!chargerId.trim()) {
+      Alert.alert("Error", "Please scan or enter a charger ID");
+      return;
+    }
+
+    // 👉 Call backend here
+    console.log("Charger ID:", chargerId);
+
+    Alert.alert("Success", `Charger ID: ${chargerId}`);
+  };
+
+  /* ---------------- States ---------------- */
+  if (hasPermission === null) {
+    return <Text>Requesting camera permission…</Text>;
+  }
+
+  if (hasPermission === false) {
+    return <Text>No access to camera</Text>;
+  }
 
   return (
     <View style={styles.container}>
-      {/* ---------------- Map ---------------- */}
-      <MapView
-        ref={mapRef}
-        style={StyleSheet.absoluteFillObject}
-        provider={undefined} // IMPORTANT for OSM
-        initialRegion={{
-          latitude: 12.9716,
-          longitude: 77.5946,
-          latitudeDelta: 6,
-          longitudeDelta: 6,
-        }}
-      >
-        <UrlTile
-          urlTemplate="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          maximumZ={19}
+      {/* ---------------- Camera Scanner ---------------- */}
+      <View style={styles.container}>
+        <CameraView
+          onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+          barcodeScannerSettings={{
+            barcodeTypes: ["qr", "pdf417"],
+          }}
+          style={StyleSheet.absoluteFillObject}
         />
-      </MapView>
+      </View>
 
-      {/* ---------------- Top Overlay ---------------- */}
-      <View style={styles.topOverlay} pointerEvents="box-none">
-        {/* Search + Wallet */}
-        <View style={styles.searchRow}>
-          <View style={styles.searchBox}>
-            <GooglePlacesAutocomplete
-              placeholder="Search locations"
-              fetchDetails
-              onPress={(data, details) => {
-                if (!details) return;
+      {/* ---------------- Controls ---------------- */}
+      <View style={styles.panel}>
+        <Text style={styles.title}>Scan QR or Enter Charger ID</Text>
 
-                const { lat, lng } = details.geometry.location;
+        <TextInput
+          placeholder="Enter Charger ID manually"
+          value={chargerId}
+          onChangeText={setChargerId}
+          style={styles.input}
+        />
 
-                mapRef.current?.animateToRegion({
-                  latitude: lat,
-                  longitude: lng,
-                  latitudeDelta: 0.05,
-                  longitudeDelta: 0.05,
-                });
-              }}
-              query={{
-                key: GOOGLE_MAPS_API_KEY,
-                language: "en",
-              }}
-              styles={{
-                container: { flex: 1 },
-                textInput: styles.searchInput,
-                listView: { zIndex: 20 },
-              }}
-            />
-          </View>
+        <TouchableOpacity style={styles.secondaryBtn} onPress={pickQRImage}>
+          <Text style={styles.secondaryText}>Upload QR Image</Text>
+        </TouchableOpacity>
 
-          <TouchableOpacity style={styles.wallet}>
-            <Text style={styles.walletText}>₹ {walletBalance}</Text>
+        <TouchableOpacity style={styles.primaryBtn} onPress={handleProceed}>
+          <Text style={styles.primaryText}>Proceed</Text>
+        </TouchableOpacity>
+
+        {scanned && (
+          <TouchableOpacity
+            onPress={() => setScanned(false)}
+            style={styles.rescan}
+          >
+            <Text style={styles.rescanText}>Scan Again</Text>
           </TouchableOpacity>
-        </View>
-
-        {/* Filters */}
-        <View style={styles.filters}>
-          <FilterChip
-            label="AC"
-            active={filters.ac}
-            onPress={() => toggleFilter("ac")}
-          />
-          <FilterChip
-            label="DC"
-            active={filters.dc}
-            onPress={() => toggleFilter("dc")}
-          />
-          <FilterChip
-            label="Available"
-            active={filters.available}
-            onPress={() => toggleFilter("available")}
-          />
-        </View>
+        )}
       </View>
     </View>
   );
 }
 
-/* ---------------- Filter Chip ---------------- */
-function FilterChip({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[styles.chip, active && styles.chipActive]}
-    >
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
 /* ---------------- Styles ---------------- */
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: "#000" },
 
-  topOverlay: {
-    position: "absolute",
-    top: 50,
-    left: 16,
-    right: 16,
+  scanner: {
+    flex: 1.2,
   },
 
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-
-  searchBox: {
+  panel: {
     flex: 1,
     backgroundColor: "#fff",
-    borderRadius: 12,
-    elevation: 4,
-    zIndex: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
   },
 
-  searchInput: {
-    height: 44,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    fontSize: 14,
+  title: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 12,
   },
 
-  wallet: {
+  input: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+
+  primaryBtn: {
     backgroundColor: "#1E293B",
-    paddingHorizontal: 14,
-    height: 44,
+    padding: 14,
     borderRadius: 12,
-    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 8,
+  },
+
+  primaryText: {
+    color: "#fff",
+    fontWeight: "600",
+  },
+
+  secondaryBtn: {
+    borderWidth: 1,
+    borderColor: "#1E293B",
+    padding: 12,
+    borderRadius: 12,
     alignItems: "center",
   },
 
-  walletText: {
-    color: "#fff",
+  secondaryText: {
+    color: "#1E293B",
     fontWeight: "600",
   },
 
-  filters: {
-    flexDirection: "row",
-    gap: 10,
+  rescan: {
     marginTop: 12,
+    alignItems: "center",
   },
 
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: "#E5E7EB",
-  },
-
-  chipActive: {
-    backgroundColor: "#1E293B",
-  },
-
-  chipText: {
-    fontSize: 13,
-    color: "#111827",
-  },
-
-  chipTextActive: {
-    color: "#fff",
-    fontWeight: "600",
+  rescanText: {
+    color: "#2563EB",
+    fontWeight: "500",
   },
 });
