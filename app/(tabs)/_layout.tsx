@@ -114,19 +114,18 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="profile"
+        name="map"
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon focused={focused} color={color} name="person.fill" />
+            <TabIcon focused={focused} color={color} name="map.fill" />
           ),
         }}
       />
-
       <Tabs.Screen
-        name="notification"
+        name="recent"
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon focused={focused} color={color} name="bell.fill" />
+            <TabIcon focused={focused} color={color} name="clock.fill" />
           ),
         }}
       />
@@ -138,21 +137,20 @@ export default function TabLayout() {
           tabBarIcon: () => <QRFloatingButton color={tabAccent} />,
         }}
       />
-
       <Tabs.Screen
-        name="recent"
+        name="offers"
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon focused={focused} color={color} name="clock.fill" />
+            <TabIcon focused={focused} color={color} name="gift.fill" />
           ),
         }}
       />
 
       <Tabs.Screen
-        name="filters"
+        name="profile"
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon focused={focused} color={color} name="filter.fill" />
+            <TabIcon focused={focused} color={color} name="person.fill" />
           ),
         }}
       />

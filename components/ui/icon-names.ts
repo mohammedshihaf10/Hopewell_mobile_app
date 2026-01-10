@@ -27,6 +27,16 @@ export const ICONS = {
   "wallet.pass.fill": true,
   "chart.bar.fill": true,
   "bell.slash.fill": true,
+  "gift.fill": true,
+  "search": true,
+  "directions": true,
+  "heart.fill": true,
+  "heart": true,
+  "phone": true,
+  "email": true,
+  "description": true,
+  "policy": true,
+  "help": true,
 } as const;
 
 export type IconName = keyof typeof ICONS;

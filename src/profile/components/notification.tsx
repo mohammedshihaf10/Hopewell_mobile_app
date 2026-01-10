@@ -55,7 +55,7 @@ export default function Notification() {
 
       <View style={styles.headerRow}>
         <View>
-          <Text style={styles.header}>Notifications</Text>
+          {/* <Text style={styles.header}>Notifications</Text> */}
           <Text style={styles.subheader}>Charging updates and payments</Text>
         </View>
         <Pressable
@@ -101,7 +101,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F3F6FB",
     paddingHorizontal: 16,
-    paddingTop: 44,
   },
   header: {
     fontSize: 24,

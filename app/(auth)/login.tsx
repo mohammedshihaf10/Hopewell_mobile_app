@@ -11,7 +11,7 @@ export default function Login() {
     // Implement login logic here
     console.log("Logging in...");
     dispatch(loginSuccess());
-    router.push("/(tabs)/profile");
+    router.push("/(tabs)/map");
   };
   return (
     <View style={styles.container}>
