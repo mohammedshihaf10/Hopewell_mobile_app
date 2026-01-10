@@ -1,17 +1,31 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View, ViewStyle } from "react-native";
 import { useRouter } from "expo-router";
 
 import { IconSymbol } from "components/ui/icon-symbol";
 
-export default function Wallet() {
-  const router = useRouter();
+type WalletContentProps = {
+  showBack?: boolean;
+  onBack?: () => void;
+  containerStyle?: ViewStyle;
+  onAddMoney?: () => void;
+  onTransactions?: () => void;
+};
 
+export function WalletContent({
+  showBack = true,
+  onBack,
+  containerStyle,
+  onAddMoney,
+  onTransactions,
+}: WalletContentProps) {
   return (
-    <View style={styles.container}>
-      <Pressable style={styles.backRow} onPress={() => router.back()}>
+    <View style={[styles.container, containerStyle]}>
+      {showBack ? (
+        <Pressable style={styles.backRow} onPress={onBack}>
         <IconSymbol name="arrow.left" size={18} color="#0F172A" />
         <Text style={styles.backText}>Back</Text>
       </Pressable>
+      ) : null}
 
       <Text style={styles.title}>My Wallet</Text>
 
@@ -19,10 +33,7 @@ export default function Wallet() {
         <View style={styles.cardGlow} />
         <Text style={styles.cardLabel}>Current balance</Text>
         <Text style={styles.cardValue}>₹ 0.00</Text>
-        <Pressable
-          style={styles.addButton}
-          onPress={() => router.push("/profile/add-money")}
-        >
+        <Pressable style={styles.addButton} onPress={onAddMoney}>
           <View style={styles.addIcon}>
             <IconSymbol name="plus" size={14} color="#D11D2E" />
           </View>
@@ -30,14 +41,23 @@ export default function Wallet() {
         </Pressable>
       </View>
 
-      <Pressable
-        style={styles.transactionsRow}
-        onPress={() => router.push("/profile/transactions")}
-      >
+      <Pressable style={styles.transactionsRow} onPress={onTransactions}>
         <Text style={styles.transactionsText}>View All Transactions</Text>
         <IconSymbol name="arrow.right" size={18} color="#1A2850" />
       </Pressable>
     </View>
+  );
+}
+
+export default function Wallet() {
+  const router = useRouter();
+
+  return (
+    <WalletContent
+      onBack={() => router.back()}
+      onAddMoney={() => router.push("/profile/add-money")}
+      onTransactions={() => router.push("/profile/transactions")}
+    />
   );
 }
 

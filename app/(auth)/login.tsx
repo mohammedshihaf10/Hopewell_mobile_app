@@ -1,27 +1,26 @@
-import { loginSuccess } from "@/features/auth/slice";
-import { useAppDispatch } from "@/store/hooks";
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+
+import { IconSymbol } from "components/ui/icon-symbol";
 
 export default function Login() {
-  const dispatch = useAppDispatch();
   const router = useRouter();
 
-  const handleLogin = () => {
-    // Implement login logic here
-    console.log("Logging in...");
-    dispatch(loginSuccess());
-    router.push("/(tabs)/map");
-  };
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Login</Text>
+      <View style={styles.logoWrap}>
+        <View style={styles.logoRing} />
+        <View style={styles.logoDot} />
+        <IconSymbol name="bolt.fill" size={44} color="#22B9C4" />
+      </View>
+      <Text style={styles.brand}>Vajra Volt</Text>
+      <Text style={styles.tagline}>CHARGING</Text>
 
-      <TextInput placeholder="Email" style={styles.input} />
-      <TextInput placeholder="Password" secureTextEntry style={styles.input} />
-
-      <Pressable style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Sign In</Text>
+      <Pressable
+        style={styles.button}
+        onPress={() => router.replace("/(tabs)/map")}
+      >
+        <Text style={styles.buttonText}>Get started</Text>
       </Pressable>
     </View>
   );
@@ -31,29 +30,57 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
+    alignItems: "center",
     padding: 24,
+    backgroundColor: "#FFFFFF",
   },
-  title: {
+  logoWrap: {
+    width: 140,
+    height: 140,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+  },
+  logoRing: {
+    position: "absolute",
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 10,
+    borderColor: "rgba(34, 185, 196, 0.35)",
+  },
+  logoDot: {
+    position: "absolute",
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#22B9C4",
+    right: 16,
+    top: 40,
+  },
+  brand: {
     fontSize: 24,
-    fontWeight: "600",
-    marginBottom: 24,
-    textAlign: "center",
+    fontWeight: "700",
+    color: "#0F172A",
   },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
+  tagline: {
+    marginTop: 6,
+    letterSpacing: 4,
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#7B8AB0",
   },
   button: {
-    backgroundColor: "#111",
-    padding: 14,
-    borderRadius: 8,
+    marginTop: 36,
+    backgroundColor: "#21B3A7",
+    paddingVertical: 12,
+    paddingHorizontal: 26,
+    borderRadius: 999,
   },
   buttonText: {
-    color: "#fff",
+    color: "#FFFFFF",
     textAlign: "center",
-    fontWeight: "600",
+    fontWeight: "700",
+    fontSize: 14,
   },
 });

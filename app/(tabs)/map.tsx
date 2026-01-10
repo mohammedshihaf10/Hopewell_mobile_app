@@ -9,8 +9,10 @@ import {
   View,
 } from "react-native";
 import MapView, { UrlTile } from "react-native-maps";
+import { useRouter } from "expo-router";
 
 import { IconSymbol } from "components/ui/icon-symbol";
+import { WalletContent } from "./profile/wallet";
 
 type Station = {
   id: string;
@@ -102,6 +104,7 @@ const STATIONS: Record<"nearby" | "previous" | "favorites", Station[]> = {
 
 export default function MapScreen() {
   const mapRef = useRef<MapView>(null);
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<
     "nearby" | "previous" | "favorites"
   >("nearby");
@@ -112,6 +115,7 @@ export default function MapScreen() {
   const [infoStation, setInfoStation] = useState<Station | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [walletOpen, setWalletOpen] = useState(false);
   const stations = useMemo(() => STATIONS[activeTab], [activeTab]);
   const selectedStation = useMemo(
     () => stations.find((station) => station.id === selectedStationId) ?? null,
@@ -146,43 +150,50 @@ export default function MapScreen() {
 
       {/* ---------------- Top Overlay ---------------- */}
       <View style={styles.topOverlay} pointerEvents="box-none">
-        <View style={styles.headerBar}>
-          {isSearching ? (
-            <>
+        <View style={styles.headerRow}>
+          <View style={styles.searchCard}>
+            {isSearching ? (
               <View style={styles.searchInputWrap}>
                 <IconSymbol name="search" size={16} color="#6C7CA6" />
                 <TextInput
                   autoFocus
-                  placeholder="Search chargers"
+                  placeholder="Search locations"
                   placeholderTextColor="#8B97B2"
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                   style={styles.searchInput}
                 />
               </View>
+            ) : (
               <Pressable
-                onPress={() => {
-                  setIsSearching(false);
-                  setSearchQuery("");
-                }}
-                style={styles.cancelButton}
-              >
-                <Text style={styles.cancelText}>Cancel</Text>
-              </Pressable>
-            </>
-          ) : (
-            <>
-              <Pressable
-                style={styles.headerIcon}
+                style={styles.searchPlaceholder}
                 onPress={() => setIsSearching(true)}
               >
-                <IconSymbol name="search" size={18} color="#0F172A" />
+                <IconSymbol name="search" size={16} color="#6C7CA6" />
+                <Text style={styles.searchPlaceholderText}>
+                  Search locations
+                </Text>
               </Pressable>
-              <Text style={styles.headerTitle}>Choose a charger</Text>
-              <View style={styles.headerSpacer} />
-            </>
-          )}
+            )}
+          </View>
+          <Pressable
+            style={styles.walletCard}
+            onPress={() => setWalletOpen(true)}
+          >
+            <Text style={styles.walletText}>₹ 450</Text>
+          </Pressable>
         </View>
+        {isSearching ? (
+          <Pressable
+            onPress={() => {
+              setIsSearching(false);
+              setSearchQuery("");
+            }}
+            style={styles.cancelButton}
+          >
+            <Text style={styles.cancelText}>Cancel</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <View style={styles.sheet}>
@@ -307,6 +318,21 @@ export default function MapScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <Modal
+        visible={walletOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setWalletOpen(false)}
+      >
+        <View style={styles.walletModal}>
+          <WalletContent
+            onBack={() => setWalletOpen(false)}
+            onAddMoney={() => router.push("/profile/add-money")}
+            onTransactions={() => router.push("/profile/transactions")}
+          />
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -322,14 +348,16 @@ const styles = StyleSheet.create({
     right: 16,
   },
 
-  headerBar: {
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+  },
+  searchCard: {
+    flex: 1,
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: "rgba(40, 92, 153, 0.12)",
     shadowColor: "#0B2A5E",
@@ -338,31 +366,36 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     elevation: 2,
   },
-  headerIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#F3F6FB",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#0F172A",
-  },
-  headerSpacer: {
-    width: 36,
-    height: 36,
-  },
-  searchInputWrap: {
-    flex: 1,
+  searchPlaceholder: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F3F6FB",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 40,
+  },
+  searchPlaceholderText: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6C7CA6",
+  },
+  walletCard: {
+    marginLeft: 12,
+    backgroundColor: "#111827",
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    shadowColor: "#0B2A5E",
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+  },
+  walletText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  searchInputWrap: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   searchInput: {
     flex: 1,
@@ -372,7 +405,8 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   cancelButton: {
-    marginLeft: 10,
+    marginTop: 8,
+    alignSelf: "flex-end",
   },
   cancelText: {
     fontSize: 13,
@@ -530,6 +564,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     color: "#1A2850",
+  },
+  walletModal: {
+    flex: 1,
+    backgroundColor: "#F3F6FB",
   },
   stationAddress: {
     marginTop: 6,

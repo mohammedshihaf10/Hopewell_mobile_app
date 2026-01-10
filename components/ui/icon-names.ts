@@ -28,6 +28,7 @@ export const ICONS = {
   "chart.bar.fill": true,
   "bell.slash.fill": true,
   "gift.fill": true,
+  "bolt.fill": true,
   "search": true,
   "directions": true,
   "heart.fill": true,

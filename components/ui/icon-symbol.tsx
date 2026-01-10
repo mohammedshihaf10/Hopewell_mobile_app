@@ -29,6 +29,7 @@ const MAPPING: Record<IconName, MaterialIconName> = {
   "policy": "policy",
   "help": "help-outline",
   "gift.fill": "card-giftcard",
+  "bolt.fill": "bolt",
 
   "house.fill": "home",
   "paperplane.fill": "send",
