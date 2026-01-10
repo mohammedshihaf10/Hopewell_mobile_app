@@ -5,7 +5,17 @@ import { useRouter } from "expo-router";
 import { IconSymbol } from "components/ui/icon-symbol";
 import { ChargingSession, SESSIONS } from "./_session-data";
 
-export default function Recent() {
+type RecentProps = {
+  showHeader?: boolean;
+  topPadding?: number;
+  withContainer?: boolean;
+};
+
+export function RecentContent({
+  showHeader = true,
+  topPadding = 40,
+  withContainer = true,
+}: RecentProps) {
   const router = useRouter();
   const liveSession = useMemo(
     () => SESSIONS.find((session) => session.isLive),
@@ -47,10 +57,14 @@ export default function Recent() {
     </Pressable>
   );
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Charging Sessions</Text>
-      <Text style={styles.subheader}>Live status and past activity</Text>
+  const content = (
+    <>
+      {showHeader ? (
+        <>
+          <Text style={styles.header}>Charging Sessions</Text>
+          <Text style={styles.subheader}>Live status and past activity</Text>
+        </>
+      ) : null}
 
       <FlatList
         data={pastSessions}
@@ -105,8 +119,20 @@ export default function Recent() {
         }
         renderItem={({ item }) => renderSession(item)}
       />
-    </View>
+    </>
   );
+
+  if (!withContainer) {
+    return content;
+  }
+
+  return (
+    <View style={[styles.container, { paddingTop: topPadding }]}>{content}</View>
+  );
+}
+
+export default function Recent() {
+  return <RecentContent />;
 }
 
 const styles = StyleSheet.create({

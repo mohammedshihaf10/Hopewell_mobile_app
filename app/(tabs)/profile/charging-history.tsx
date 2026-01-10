@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { IconSymbol } from "components/ui/icon-symbol";
+import { RecentContent } from "../recent";
 
 export default function ChargingHistory() {
   const router = useRouter();
@@ -13,7 +14,9 @@ export default function ChargingHistory() {
         <Text style={styles.backText}>Back</Text>
       </Pressable>
       <Text style={styles.title}>Charging history</Text>
-      <Text style={styles.body}>Your past sessions will appear here.</Text>
+      <View style={styles.listWrap}>
+        <RecentContent showHeader={false} withContainer={false} />
+      </View>
     </View>
   );
 }
@@ -42,9 +45,7 @@ const styles = StyleSheet.create({
     color: "#0F172A",
     marginBottom: 12,
   },
-  body: {
-    fontSize: 14,
-    color: "#6C7CA6",
-    fontWeight: "600",
+  listWrap: {
+    flex: 1,
   },
 });

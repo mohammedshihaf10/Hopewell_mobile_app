@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import  Notification  from "../../../src/profile/components/notification";
+import Notification from "../../../src/profile/components/notification";
 import { IconSymbol } from "components/ui/icon-symbol";
 
 export default function ProfileNotifications() {
@@ -12,7 +12,8 @@ export default function ProfileNotifications() {
         <IconSymbol name="arrow.left" size={18} color="#0F172A" />
         <Text style={styles.backText}>Back</Text>
       </Pressable>
-      <Notification/>
+      <Text style={styles.title}>Notifications</Text>
+      <Notification embedded />
     </View>
   );
 }

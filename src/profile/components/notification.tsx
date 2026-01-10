@@ -44,14 +44,22 @@ const NOTIFICATIONS: NotificationItem[] = [
   },
 ];
 
-export default function Notification() {
+type NotificationProps = {
+  embedded?: boolean;
+};
+
+export default function Notification({ embedded = false }: NotificationProps) {
   const [notifications, setNotifications] =
     useState<NotificationItem[]>(NOTIFICATIONS);
 
   return (
-    <View style={styles.container}>
-      <View pointerEvents="none" style={styles.glowTop} />
-      <View pointerEvents="none" style={styles.glowBottom} />
+    <View style={[styles.container, embedded && styles.containerEmbedded]}>
+      {embedded ? null : (
+        <>
+          <View pointerEvents="none" style={styles.glowTop} />
+          <View pointerEvents="none" style={styles.glowBottom} />
+        </>
+      )}
 
       <View style={styles.headerRow}>
         <View>
@@ -101,6 +109,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F3F6FB",
     paddingHorizontal: 16,
+  },
+  containerEmbedded: {
+    backgroundColor: "transparent",
+    paddingHorizontal: 0,
   },
   header: {
     fontSize: 24,
