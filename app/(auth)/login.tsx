@@ -118,7 +118,8 @@ export default function Login() {
       dispatch(loginSuccess());
       router.replace("/(tabs)/map");
     } catch (err) {
-      setError("Invalid OTP. Please try again.");
+      console.log("err", err);
+      setError(`${err}`);
     } finally {
       setIsSubmitting(false);
     }

@@ -1,3 +1,5 @@
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -7,14 +9,27 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { useState } from "react";
 
+import { useGetMeQuery } from "@/profile/profile.api";
 import { IconSymbol } from "components/ui/icon-symbol";
 
 export default function PersonalInfo() {
   const router = useRouter();
   const [showVerifyPrompt, setShowVerifyPrompt] = useState(false);
+  const { data, isLoading, isError, error, refetch } = useGetMeQuery();
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    if (!data) return;
+    setName(data.full_name ?? "");
+    setPhone(data.phone_number ?? "");
+    setEmail(data.email ?? "");
+    if (data.is_email_verified === false) {
+      setShowVerifyPrompt(true);
+    }
+  }, [data]);
 
   return (
     <View style={styles.container}>
@@ -26,11 +41,31 @@ export default function PersonalInfo() {
 
         <Text style={styles.title}>My Profile</Text>
 
+        {isError ? (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorTitle}>Unable to load profile</Text>
+            <Text style={styles.errorMessage}>
+              {"message" in (error as { message?: string })
+                ? (error as { message?: string }).message
+                : "Please check your connection and try again."}
+            </Text>
+            <Pressable style={styles.retryButton} onPress={() => refetch()}>
+              <Text style={styles.retryText}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         <View style={styles.field}>
           <Text style={styles.label}>
             Name <Text style={styles.required}>*</Text>
           </Text>
-          <TextInput value="Benny" style={styles.input} />
+          <TextInput
+            value={name}
+            onChangeText={setName}
+            style={styles.input}
+            placeholder={isLoading ? "Loading..." : "Enter your name"}
+            placeholderTextColor="#8B97B2"
+          />
         </View>
 
         <View style={styles.field}>
@@ -42,7 +77,14 @@ export default function PersonalInfo() {
               <Text style={styles.flag}>🇮🇳</Text>
               <Text style={styles.codeText}>+91</Text>
             </View>
-            <TextInput value="6369631421" style={styles.inputInline} />
+            <TextInput
+              value={phone}
+              onChangeText={setPhone}
+              style={styles.inputInline}
+              keyboardType="phone-pad"
+              placeholder={isLoading ? "Loading..." : "Enter your number"}
+              placeholderTextColor="#8B97B2"
+            />
           </View>
         </View>
 
@@ -52,15 +94,20 @@ export default function PersonalInfo() {
           </Text>
           <View style={styles.inputRow}>
             <TextInput
-              value="bennyamenasirvatham@gmail.com"
+              value={email}
+              onChangeText={setEmail}
               style={styles.inputInline}
+              placeholder={isLoading ? "Loading..." : "Enter your email"}
+              placeholderTextColor="#8B97B2"
             />
-            <Pressable
-              style={styles.unverified}
-              onPress={() => setShowVerifyPrompt(true)}
-            >
-              <Text style={styles.unverifiedText}>Unverified</Text>
-            </Pressable>
+            {data && !data.is_email_verified ? (
+              <Pressable
+                style={styles.unverified}
+                onPress={() => setShowVerifyPrompt(true)}
+              >
+                <Text style={styles.unverifiedText}>Unverified</Text>
+              </Pressable>
+            ) : null}
           </View>
         </View>
 
@@ -242,6 +289,38 @@ const styles = StyleSheet.create({
   saveText: {
     color: "#FFFFFF",
     fontSize: 14,
+    fontWeight: "700",
+  },
+  errorBox: {
+    backgroundColor: "#FFECEE",
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#F5B6BE",
+    marginBottom: 16,
+  },
+  errorTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#C81D2C",
+  },
+  errorMessage: {
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#A82734",
+  },
+  retryButton: {
+    alignSelf: "flex-start",
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#E11D2E",
+    borderRadius: 999,
+  },
+  retryText: {
+    color: "#FFFFFF",
+    fontSize: 12,
     fontWeight: "700",
   },
   modalBackdrop: {
