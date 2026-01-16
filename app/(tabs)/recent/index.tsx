@@ -3,7 +3,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { IconSymbol } from "components/ui/icon-symbol";
-import { ChargingSession, SESSIONS } from "./_session-data";
+import { ChargingSession, SESSIONS } from "src/data/charging-sessions";
 
 type RecentProps = {
   showHeader?: boolean;

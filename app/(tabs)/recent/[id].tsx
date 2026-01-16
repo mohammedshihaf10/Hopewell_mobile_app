@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { IconSymbol } from "components/ui/icon-symbol";
-import { SESSIONS } from "./_session-data";
+import { SESSIONS } from "src/data/charging-sessions";
 
 export default function SessionDetails() {
   const router = useRouter();
