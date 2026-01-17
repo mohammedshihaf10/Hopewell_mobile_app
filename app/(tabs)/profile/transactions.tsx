@@ -1,10 +1,13 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { IconSymbol } from "components/ui/icon-symbol";
+import { useGetWalletTransactionsQuery } from "@/wallet/wallet.api";
 
 export default function Transactions() {
   const router = useRouter();
+  const { data, isLoading, isError, refetch } =
+    useGetWalletTransactionsQuery(50);
 
   return (
     <View style={styles.container}>
@@ -13,7 +16,37 @@ export default function Transactions() {
         <Text style={styles.backText}>Back</Text>
       </Pressable>
       <Text style={styles.title}>Transactions</Text>
-      <Text style={styles.body}>Wallet activity will appear here.</Text>
+      {isError ? (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>
+            Unable to load transactions. Please try again.
+          </Text>
+          <Pressable style={styles.retryButton} onPress={() => refetch()}>
+            <Text style={styles.retryText}>Retry</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      <ScrollView contentContainerStyle={styles.list}>
+        {isLoading ? (
+          <Text style={styles.body}>Loading...</Text>
+        ) : data && data.length > 0 ? (
+          data.map((item) => (
+            <View key={item.id} style={styles.txCard}>
+              <View>
+                <Text style={styles.txTitle}>{item.description}</Text>
+                <Text style={styles.txMeta}>
+                  {item.transaction_type} · {item.created_at}
+                </Text>
+              </View>
+              <Text style={styles.txAmount}>
+                {item.currency} {item.amount}
+              </Text>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.body}>No transactions yet.</Text>
+        )}
+      </ScrollView>
     </View>
   );
 }
@@ -46,5 +79,60 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6C7CA6",
     fontWeight: "600",
+  },
+  list: {
+    paddingTop: 6,
+    paddingBottom: 24,
+  },
+  txCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(40, 92, 153, 0.12)",
+  },
+  txTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#13233D",
+  },
+  txMeta: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#6C7CA6",
+  },
+  txAmount: {
+    marginTop: 10,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#0F6A6A",
+  },
+  errorBox: {
+    backgroundColor: "#FFECEE",
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#F5B6BE",
+    marginBottom: 12,
+  },
+  errorText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#C81D2C",
+  },
+  retryButton: {
+    alignSelf: "flex-start",
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#E11D2E",
+    borderRadius: 999,
+  },
+  retryText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
   },
 });

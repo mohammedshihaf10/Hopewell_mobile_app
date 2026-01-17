@@ -1,10 +1,29 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
 
 import { IconSymbol } from "components/ui/icon-symbol";
+import { useLogoutMutation } from "@/auth/auth.api";
+import { logout as logoutAction } from "@/features/auth/slice";
+import { useAppDispatch } from "@/store/hooks";
 
 export default function Logout() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
+  const [logout, { isLoading, isError }] = useLogoutMutation();
+
+  const handleLogout = async () => {
+    try {
+      await logout().unwrap();
+    } catch {
+      // Backend may fail; still clear local session.
+    } finally {
+      await SecureStore.deleteItemAsync("auth_access_token");
+      await SecureStore.deleteItemAsync("auth_refresh_token");
+      dispatch(logoutAction());
+      router.replace("/(auth)/login");
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -16,8 +35,15 @@ export default function Logout() {
       <Text style={styles.body}>
         Log out confirmation will be handled here.
       </Text>
-      <Pressable style={styles.logoutButton}>
-        <Text style={styles.logoutText}>Confirm log out</Text>
+      {isError ? (
+        <Text style={styles.errorText}>
+          Logout failed. You have been signed out locally.
+        </Text>
+      ) : null}
+      <Pressable style={styles.logoutButton} onPress={handleLogout}>
+        <Text style={styles.logoutText}>
+          {isLoading ? "Signing out..." : "Confirm log out"}
+        </Text>
       </Pressable>
     </View>
   );
@@ -63,5 +89,11 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "700",
+  },
+  errorText: {
+    marginTop: 12,
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#C81D2C",
   },
 });

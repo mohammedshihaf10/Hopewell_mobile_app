@@ -1,10 +1,22 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { useGetMeQuery } from "@/profile/profile.api";
+import { useGetWalletBalanceQuery } from "@/wallet/wallet.api";
 import { IconSymbol } from "components/ui/icon-symbol";
 
+type RowId =
+  | "personal"
+  | "wallet"
+  | "charging-history"
+  | "payment-methods"
+  | "privacy"
+  | "notifications"
+  | "help"
+  | "logout";
+
 type RowItem = {
-  id: string;
+  id: RowId;
   label: string;
   value?: string;
 };
@@ -22,13 +34,23 @@ const PROFILE_ITEMS: RowItem[] = [
 
 export default function Profile() {
   const router = useRouter();
+  const { data } = useGetMeQuery();
+  const { data: walletData, isLoading: walletLoading } =
+    useGetWalletBalanceQuery();
 
-  const openScreen = (id: string) => {
-    if (id === "wallet") {
-      router.push("/profile/wallet");
-      return;
-    }
-    router.push(`/profile/${id}`);
+  const ROUTES = {
+    personal: "/profile/personal",
+    wallet: "/profile/wallet",
+    "charging-history": "/profile/charging-history",
+    "payment-methods": "/profile/payment-methods",
+    privacy: "/profile/privacy",
+    notifications: "/profile/notifications",
+    help: "/profile/help",
+    logout: "/profile/logout",
+  } as const;
+
+  const openScreen = (id: RowId) => {
+    router.push(ROUTES[id]);
   };
 
   return (
@@ -43,8 +65,10 @@ export default function Profile() {
         </View>
 
         <View style={styles.identity}>
-          <Text style={styles.name}>Saravanan Selvaraj</Text>
-          <Text style={styles.email}>saravanan.hp@gmail.com</Text>
+          <Text style={styles.name}>{data?.full_name ?? "Your name"}</Text>
+          <Text style={styles.email}>
+            {data?.email ?? data?.phone_number ?? ""}
+          </Text>
         </View>
 
         <Text style={styles.sectionTitle}>Profile</Text>
@@ -60,7 +84,15 @@ export default function Profile() {
             >
               <Text style={styles.rowLabel}>{item.label}</Text>
               <View style={styles.rowRight}>
-                {item.value ? (
+                {item.id === "wallet" ? (
+                  <Text style={styles.rowValue}>
+                    {walletLoading
+                      ? "Loading..."
+                      : `${(walletData?.currency ?? "INR") === "INR" ? "₹" : ""}${
+                          walletData?.balance ?? 0
+                        }`}
+                  </Text>
+                ) : item.value ? (
                   <Text style={styles.rowValue}>{item.value}</Text>
                 ) : null}
                 <IconSymbol name="chevron.right" size={18} color="#9AA7BF" />
@@ -68,7 +100,6 @@ export default function Profile() {
             </Pressable>
           ))}
         </View>
-
       </ScrollView>
     </View>
   );

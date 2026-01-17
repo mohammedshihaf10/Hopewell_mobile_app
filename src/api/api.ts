@@ -6,7 +6,7 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "";
 
 export const api = createApi({
   reducerPath: "api",
-  tagTypes: [],
+  tagTypes: ["WalletBalance", "WalletTransactions"],
   baseQuery: fetchBaseQuery({
     baseUrl: API_BASE_URL,
     prepareHeaders: prepareHeadersWithAuth,

@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View, ViewStyle } from "react-native";
 import { useRouter } from "expo-router";
 
 import { IconSymbol } from "components/ui/icon-symbol";
+import { useGetWalletBalanceQuery } from "@/wallet/wallet.api";
 
 type WalletContentProps = {
   showBack?: boolean;
@@ -18,13 +19,21 @@ export function WalletContent({
   onAddMoney,
   onTransactions,
 }: WalletContentProps) {
+  const { data, isLoading, isError } = useGetWalletBalanceQuery();
+
+  const balanceText = isLoading
+    ? "..."
+    : isError
+    ? "--"
+    : `${data?.currency ?? "INR"} ${data?.balance ?? 0}`;
+
   return (
     <View style={[styles.container, containerStyle]}>
       {showBack ? (
         <Pressable style={styles.backRow} onPress={onBack}>
-        <IconSymbol name="arrow.left" size={18} color="#0F172A" />
-        <Text style={styles.backText}>Back</Text>
-      </Pressable>
+          <IconSymbol name="arrow.left" size={18} color="#0F172A" />
+          <Text style={styles.backText}>Back</Text>
+        </Pressable>
       ) : null}
 
       <Text style={styles.title}>My Wallet</Text>
@@ -32,7 +41,7 @@ export function WalletContent({
       <View style={styles.card}>
         <View style={styles.cardGlow} />
         <Text style={styles.cardLabel}>Current balance</Text>
-        <Text style={styles.cardValue}>₹ 0.00</Text>
+        <Text style={styles.cardValue}>{balanceText}</Text>
         <Pressable style={styles.addButton} onPress={onAddMoney}>
           <View style={styles.addIcon}>
             <IconSymbol name="plus" size={14} color="#D11D2E" />

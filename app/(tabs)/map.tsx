@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from "react";
+import { useRouter } from "expo-router";
+import { useMemo, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -8,9 +9,9 @@ import {
   TextInput,
   View,
 } from "react-native";
-import MapView, { UrlTile } from "react-native-maps";
-import { useRouter } from "expo-router";
+import { WebView } from "react-native-webview";
 
+import { useGetWalletBalanceQuery } from "@/wallet/wallet.api";
 import { IconSymbol } from "components/ui/icon-symbol";
 import { WalletContent } from "./profile/wallet";
 
@@ -39,7 +40,7 @@ const STATIONS: Record<"nearby" | "previous" | "favorites", Station[]> = {
       power: "Up to 120 kW",
       price: "₹16.5 / kWh",
     },
-    
+
     {
       id: "2",
       name: "South Hills ChargeHub",
@@ -103,50 +104,61 @@ const STATIONS: Record<"nearby" | "previous" | "favorites", Station[]> = {
 };
 
 export default function MapScreen() {
-  const mapRef = useRef<MapView>(null);
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<
     "nearby" | "previous" | "favorites"
   >("nearby");
   const [selectedStationId, setSelectedStationId] = useState<string | null>(
-    null
+    null,
   );
   const [likedStations, setLikedStations] = useState<string[]>(["4"]);
   const [infoStation, setInfoStation] = useState<Station | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [walletOpen, setWalletOpen] = useState(false);
+  const { data: walletData } = useGetWalletBalanceQuery();
   const stations = useMemo(() => STATIONS[activeTab], [activeTab]);
   const selectedStation = useMemo(
     () => stations.find((station) => station.id === selectedStationId) ?? null,
-    [stations, selectedStationId]
+    [stations, selectedStationId],
   );
 
   const toggleLike = (id: string) => {
     setLikedStations((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
   };
 
   return (
     <View style={styles.container}>
       {/* ---------------- Map ---------------- */}
-      <MapView
-        ref={mapRef}
+      <WebView
         style={StyleSheet.absoluteFillObject}
-        provider={undefined} // IMPORTANT for OSM
-        initialRegion={{
-          latitude: 12.9716,
-          longitude: 77.5946,
-          latitudeDelta: 6,
-          longitudeDelta: 6,
+        source={{
+          html: `<!doctype html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <style>
+      html, body, #map { height: 100%; margin: 0; padding: 0; }
+      .leaflet-control-attribution { display: none; }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      const map = L.map('map', { zoomControl: false }).setView([12.9716, 77.5946], 6);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    </script>
+  </body>
+</html>`,
         }}
-      >
-        <UrlTile
-          urlTemplate="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          maximumZ={19}
-        />
-      </MapView>
+      />
 
       {/* ---------------- Top Overlay ---------------- */}
       <View style={styles.topOverlay} pointerEvents="box-none">
@@ -180,7 +192,10 @@ export default function MapScreen() {
             style={styles.walletCard}
             onPress={() => setWalletOpen(true)}
           >
-            <Text style={styles.walletText}>₹ 450</Text>
+            <Text style={styles.walletText}>
+              {(walletData?.currency ?? "INR") === "INR" ? "₹" : ""}
+              {walletData?.balance ?? 0}
+            </Text>
           </Pressable>
         </View>
         {isSearching ? (
@@ -213,8 +228,8 @@ export default function MapScreen() {
                 {tab === "nearby"
                   ? "Nearby"
                   : tab === "previous"
-                  ? "Previous"
-                  : "Favorites"}
+                    ? "Previous"
+                    : "Favorites"}
               </Text>
               {activeTab === tab ? <View style={styles.tabLine} /> : null}
             </Pressable>
@@ -233,45 +248,49 @@ export default function MapScreen() {
               <Pressable
                 key={station.id}
                 onPress={() => setSelectedStationId(station.id)}
-                style={[styles.stationCard, isSelected && styles.stationCardSelected]}
+                style={[
+                  styles.stationCard,
+                  isSelected && styles.stationCardSelected,
+                ]}
               >
-              <View style={styles.stationHeader}>
-                <Text style={styles.stationName}>{station.name}</Text>
-                <View style={styles.stationActions}>
-                  <Pressable
-                    onPress={() => toggleLike(station.id)}
-                    style={styles.circleIcon}
-                  >
-                    <IconSymbol
-                      name={isLiked ? "heart.fill" : "heart"}
-                      size={14}
-                      color={isLiked ? "#E0586A" : "#6C7CA6"}
-                    />
-                  </Pressable>
-                  <Pressable style={styles.circleIcon}>
-                    <IconSymbol name="directions" size={14} color="#0F6A6A" />
-                  </Pressable>
-                  <Pressable
-                    onPress={() => setInfoStation(station)}
-                    style={styles.circleIcon}
-                  >
-                    <Text style={styles.circleText}>i</Text>
-                  </Pressable>
-                </View>
-              </View>
-              <Text style={styles.stationAddress}>{station.address}</Text>
-              <Text style={styles.stationMeta}>
-                {station.distanceKm} km · Open until {station.openUntil}
-              </Text>
-              <View style={styles.tagRow}>
-                {station.tags.map((tag) => (
-                  <View key={tag} style={styles.tag}>
-                    <Text style={styles.tagText}>{tag}</Text>
+                <View style={styles.stationHeader}>
+                  <Text style={styles.stationName}>{station.name}</Text>
+                  <View style={styles.stationActions}>
+                    <Pressable
+                      onPress={() => toggleLike(station.id)}
+                      style={styles.circleIcon}
+                    >
+                      <IconSymbol
+                        name={isLiked ? "heart.fill" : "heart"}
+                        size={14}
+                        color={isLiked ? "#E0586A" : "#6C7CA6"}
+                      />
+                    </Pressable>
+                    <Pressable style={styles.circleIcon}>
+                      <IconSymbol name="directions" size={14} color="#0F6A6A" />
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setInfoStation(station)}
+                      style={styles.circleIcon}
+                    >
+                      <Text style={styles.circleText}>i</Text>
+                    </Pressable>
                   </View>
-                ))}
-              </View>
-            </Pressable>
-          )})}
+                </View>
+                <Text style={styles.stationAddress}>{station.address}</Text>
+                <Text style={styles.stationMeta}>
+                  {station.distanceKm} km · Open until {station.openUntil}
+                </Text>
+                <View style={styles.tagRow}>
+                  {station.tags.map((tag) => (
+                    <View key={tag} style={styles.tag}>
+                      <Text style={styles.tagText}>{tag}</Text>
+                    </View>
+                  ))}
+                </View>
+              </Pressable>
+            );
+          })}
         </ScrollView>
       </View>
 
@@ -297,9 +316,7 @@ export default function MapScreen() {
             <Text style={styles.modalAddress}>{infoStation?.address}</Text>
             <View style={styles.modalRow}>
               <Text style={styles.modalLabel}>Connectors</Text>
-              <Text style={styles.modalValue}>
-                {infoStation?.connectors}
-              </Text>
+              <Text style={styles.modalValue}>{infoStation?.connectors}</Text>
             </View>
             <View style={styles.modalRow}>
               <Text style={styles.modalLabel}>Power</Text>

@@ -45,8 +45,13 @@ export default function PersonalInfo() {
           <View style={styles.errorBox}>
             <Text style={styles.errorTitle}>Unable to load profile</Text>
             <Text style={styles.errorMessage}>
-              {"message" in (error as { message?: string })
-                ? (error as { message?: string }).message
+              {"data" in
+              (error as { data?: { error?: string; message?: string } })
+                ? ((error as { data?: { error?: string; message?: string } })
+                    .data?.error ??
+                  (error as { data?: { error?: string; message?: string } })
+                    .data?.message ??
+                  "Please check your connection and try again.")
                 : "Please check your connection and try again."}
             </Text>
             <Pressable style={styles.retryButton} onPress={() => refetch()}>

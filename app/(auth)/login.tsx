@@ -109,12 +109,14 @@ export default function Login() {
       if (!response.ok) {
         throw new Error(payload?.message ?? "Login failed.");
       }
+      console.log("Login payload:", payload);
       await SecureStore.setItemAsync("auth_access_token", payload.access_token);
       await SecureStore.setItemAsync(
         "auth_refresh_token",
         payload.refresh_token
       );
       await SecureStore.setItemAsync("user_name", name.trim());
+      await SecureStore.setItemAsync("user_phone", phone.trim());
       dispatch(loginSuccess());
       router.replace("/(tabs)/map");
     } catch (err) {
