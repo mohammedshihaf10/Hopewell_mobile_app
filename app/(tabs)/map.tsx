@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { WebView } from "react-native-webview";
+import { useFocusEffect } from "@react-navigation/native";
 
 import { useGetWalletBalanceQuery } from "@/wallet/wallet.api";
 import { IconSymbol } from "components/ui/icon-symbol";
@@ -116,11 +117,18 @@ export default function MapScreen() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [walletOpen, setWalletOpen] = useState(false);
-  const { data: walletData } = useGetWalletBalanceQuery();
+  const { data: walletData, refetch: refetchWallet } =
+    useGetWalletBalanceQuery();
   const stations = useMemo(() => STATIONS[activeTab], [activeTab]);
   const selectedStation = useMemo(
     () => stations.find((station) => station.id === selectedStationId) ?? null,
     [stations, selectedStationId],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      refetchWallet();
+    }, [refetchWallet]),
   );
 
   const toggleLike = (id: string) => {

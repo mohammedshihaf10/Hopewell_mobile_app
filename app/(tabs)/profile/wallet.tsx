@@ -19,7 +19,8 @@ export function WalletContent({
   onAddMoney,
   onTransactions,
 }: WalletContentProps) {
-  const { data, isLoading, isError } = useGetWalletBalanceQuery();
+  const { data, isLoading, isError, isFetching, refetch } =
+    useGetWalletBalanceQuery();
 
   const balanceText = isLoading
     ? "..."
@@ -36,7 +37,14 @@ export function WalletContent({
         </Pressable>
       ) : null}
 
-      <Text style={styles.title}>My Wallet</Text>
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>My Wallet</Text>
+        <Pressable onPress={refetch} style={styles.refreshButton}>
+          <Text style={styles.refreshText}>
+            {isFetching ? "Refreshing..." : "Refresh"}
+          </Text>
+        </Pressable>
+      </View>
 
       <View style={styles.card}>
         <View style={styles.cardGlow} />
@@ -92,7 +100,25 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "700",
     color: "#0F172A",
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 18,
+  },
+  refreshButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(26, 40, 80, 0.15)",
+    backgroundColor: "#FFFFFF",
+  },
+  refreshText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#1A2850",
   },
   card: {
     backgroundColor: "#1E9FA3",

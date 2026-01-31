@@ -1,78 +1,87 @@
-import { Camera,CameraView } from "expo-camera";
-import * as ImagePicker from "expo-image-picker";
-import { useEffect, useState } from "react";
-import {
-  Alert,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { CameraView, useCameraPermissions } from "expo-camera";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 
 export default function QRScreen() {
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const router = useRouter();
+  const [permission, requestPermission] = useCameraPermissions();
+  const hasPermission = permission?.granted ?? null;
   const [scanned, setScanned] = useState(false);
-  const [chargerId, setChargerId] = useState("");
+  const [manualChargerId, setManualChargerId] = useState("");
+  const [manualConnectorId, setManualConnectorId] = useState("");
 
   /* ---------------- Permissions ---------------- */
-useEffect(() => {
-  const getPermissions = async () => {
-    const { status } = await Camera.requestCameraPermissionsAsync();
-    setHasPermission(status === 'granted');
-  };
+  useEffect(() => {
+    if (hasPermission === null) {
+      requestPermission();
+    }
+  }, [hasPermission, requestPermission]);
 
-  getPermissions();
-}, []);
-
+  useFocusEffect(
+    useCallback(() => {
+      setScanned(false);
+    }, []),
+  );
 
   /* ---------------- QR Scan ---------------- */
-  const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
+  const handleBarCodeScanned = ({ data }: { type: string; data: string }) => {
     setScanned(true);
-    alert(`Bar code with type ${type} and data ${data} has been scanned!`);
-  };
-
-  /* ---------------- Upload QR Image ---------------- */
-  const pickQRImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 1,
+    const payload = data?.trim() ? encodeURIComponent(data.trim()) : "";
+    router.replace({
+      pathname: "/qr-result",
+      params: { payload },
     });
-
-    if (!result.canceled) {
-      Alert.alert(
-        "QR uploaded",
-        "Image selected. Decode via backend or QR SDK."
-      );
-    }
   };
 
-  /* ---------------- Proceed ---------------- */
-  const handleProceed = () => {
-    if (!chargerId.trim()) {
-      Alert.alert("Error", "Please scan or enter a charger ID");
+  const handleManualSubmit = () => {
+    const chargerId = manualChargerId.trim();
+    if (!chargerId) {
       return;
     }
-
-    // 👉 Call backend here
-    console.log("Charger ID:", chargerId);
-
-    Alert.alert("Success", `Charger ID: ${chargerId}`);
+    const connectorId = manualConnectorId.trim();
+    const payloadObj = {
+      charger_id: chargerId,
+      connector_id: connectorId ? Number(connectorId) : undefined,
+    };
+    const payload = encodeURIComponent(JSON.stringify(payloadObj));
+    router.replace({
+      pathname: "/qr-result",
+      params: { payload },
+    });
   };
 
   /* ---------------- States ---------------- */
   if (hasPermission === null) {
-    return <Text>Requesting camera permission…</Text>;
+    return (
+      <View style={styles.permissionContainer}>
+        <Text style={styles.permissionTitle}>Camera access needed</Text>
+        <Text style={styles.permissionBody}>
+          We need camera permission to scan charger QR codes.
+        </Text>
+      </View>
+    );
   }
 
   if (hasPermission === false) {
-    return <Text>No access to camera</Text>;
+    return (
+      <View style={styles.permissionContainer}>
+        <Text style={styles.permissionTitle}>Camera permission denied</Text>
+        <Text style={styles.permissionBody}>
+          Enable camera access in your device settings to scan QR codes.
+        </Text>
+        <Pressable style={styles.permissionButton} onPress={requestPermission}>
+          <Text style={styles.permissionButtonText}>Grant permission</Text>
+        </Pressable>
+      </View>
+    );
   }
 
   return (
     <View style={styles.container}>
       {/* ---------------- Camera Scanner ---------------- */}
-      <View style={styles.container}>
+      <View style={styles.scanner}>
         <CameraView
           onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
           barcodeScannerSettings={{
@@ -84,31 +93,33 @@ useEffect(() => {
 
       {/* ---------------- Controls ---------------- */}
       <View style={styles.panel}>
-        <Text style={styles.title}>Scan QR or Enter Charger ID</Text>
-
-        <TextInput
-          placeholder="Enter Charger ID manually"
-          value={chargerId}
-          onChangeText={setChargerId}
-          style={styles.input}
-        />
-
-        <TouchableOpacity style={styles.secondaryBtn} onPress={pickQRImage}>
-          <Text style={styles.secondaryText}>Upload QR Image</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.primaryBtn} onPress={handleProceed}>
-          <Text style={styles.primaryText}>Proceed</Text>
-        </TouchableOpacity>
-
-        {scanned && (
-          <TouchableOpacity
-            onPress={() => setScanned(false)}
-            style={styles.rescan}
-          >
+        <Text style={styles.title}>Scan QR to verify charger</Text>
+        {scanned ? (
+          <Pressable onPress={() => setScanned(false)} style={styles.rescan}>
             <Text style={styles.rescanText}>Scan Again</Text>
-          </TouchableOpacity>
-        )}
+          </Pressable>
+        ) : null}
+
+        <View style={styles.manualBlock}>
+          <Text style={styles.manualTitle}>Enter charger manually</Text>
+          <TextInput
+            placeholder="Charger ID"
+            value={manualChargerId}
+            onChangeText={setManualChargerId}
+            autoCapitalize="characters"
+            style={styles.input}
+          />
+          <TextInput
+            placeholder="Connector ID (optional)"
+            value={manualConnectorId}
+            onChangeText={setManualConnectorId}
+            keyboardType="number-pad"
+            style={styles.input}
+          />
+          <Pressable style={styles.primaryBtn} onPress={handleManualSubmit}>
+            <Text style={styles.primaryText}>Continue</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -116,15 +127,15 @@ useEffect(() => {
 
 /* ---------------- Styles ---------------- */
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000" },
+  container: { flex: 1, backgroundColor: "#F3F6FB" },
 
   scanner: {
-    flex: 1.2,
+    flex: 1.1,
   },
 
   panel: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
@@ -132,42 +143,9 @@ const styles = StyleSheet.create({
 
   title: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: "700",
+    color: "#0F172A",
     marginBottom: 12,
-  },
-
-  input: {
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 12,
-  },
-
-  primaryBtn: {
-    backgroundColor: "#1E293B",
-    padding: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 8,
-  },
-
-  primaryText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
-
-  secondaryBtn: {
-    borderWidth: 1,
-    borderColor: "#1E293B",
-    padding: 12,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-
-  secondaryText: {
-    color: "#1E293B",
-    fontWeight: "600",
   },
 
   rescan: {
@@ -177,6 +155,70 @@ const styles = StyleSheet.create({
 
   rescanText: {
     color: "#2563EB",
-    fontWeight: "500",
+    fontWeight: "600",
+  },
+  manualBlock: {
+    marginTop: 18,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderColor: "rgba(15, 23, 42, 0.08)",
+  },
+  manualTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#0F172A",
+    marginBottom: 10,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "rgba(40, 92, 153, 0.2)",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    fontSize: 14,
+    color: "#0F172A",
+    backgroundColor: "#F8FAFF",
+  },
+  primaryBtn: {
+    backgroundColor: "#21B3A7",
+    padding: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  primaryText: {
+    color: "#fff",
+    fontWeight: "700",
+  },
+  permissionContainer: {
+    flex: 1,
+    backgroundColor: "#F3F6FB",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  permissionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#0F172A",
+    textAlign: "center",
+  },
+  permissionBody: {
+    marginTop: 8,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#6C7CA6",
+    textAlign: "center",
+  },
+  permissionButton: {
+    marginTop: 16,
+    backgroundColor: "#21B3A7",
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+  },
+  permissionButtonText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
   },
 });

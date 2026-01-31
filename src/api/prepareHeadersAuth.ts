@@ -5,7 +5,6 @@ const ACCESS_TOKEN_KEY = "auth_access_token";
 export async function prepareHeadersWithAuth(headers: Headers) {
   try {
     const accessToken = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
-    console.log("Access Token:", accessToken);
 
     if (accessToken && accessToken.startsWith("ey")) {
       headers.set("Authorization", `Bearer ${accessToken}`);

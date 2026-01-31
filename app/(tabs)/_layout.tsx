@@ -1,4 +1,4 @@
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { Platform, View } from "react-native";
 
 import { HapticTab } from "components/haptic-tab";
@@ -71,6 +71,7 @@ function QRFloatingButton({ color }: { color: string }) {
  * Tabs layout (DEFAULT EXPORT)
  * ------------------------------------------- */
 export default function TabLayout() {
+  const router = useRouter();
   const tabAccent = "#2EC6C9";
   const tabInactive = "#8B97B2";
 
@@ -138,6 +139,12 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="qr-result"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
         name="offers"
         options={{
           tabBarIcon: ({ color, focused }) => (
@@ -152,6 +159,11 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <TabIcon focused={focused} color={color} name="person.fill" />
           ),
+        }}
+        listeners={{
+          tabPress: () => {
+            router.replace("/profile");
+          },
         }}
       />
     </Tabs>

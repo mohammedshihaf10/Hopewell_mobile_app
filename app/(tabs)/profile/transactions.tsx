@@ -1,8 +1,25 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { IconSymbol } from "components/ui/icon-symbol";
 import { useGetWalletTransactionsQuery } from "@/wallet/wallet.api";
+import { IconSymbol } from "components/ui/icon-symbol";
+
+const formatDateTime = (value: string) => {
+  if (!value) return "--";
+  const normalized = value.includes("T") ? value : value.replace(" ", "T");
+  const parsed = new Date(normalized);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+  const day = parsed.toLocaleString("en-GB", { day: "2-digit" });
+  const month = parsed.toLocaleString("en-GB", { month: "short" });
+  const time = parsed.toLocaleString("en-GB", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${day} ${month}, ${time.toUpperCase()}`;
+};
 
 export default function Transactions() {
   const router = useRouter();
@@ -35,7 +52,7 @@ export default function Transactions() {
               <View>
                 <Text style={styles.txTitle}>{item.description}</Text>
                 <Text style={styles.txMeta}>
-                  {item.transaction_type} · {item.created_at}
+                  {item.transaction_type} · {formatDateTime(item.created_at)}
                 </Text>
               </View>
               <Text style={styles.txAmount}>
@@ -82,7 +99,7 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingTop: 6,
-    paddingBottom: 24,
+    paddingBottom: 120,
   },
   txCard: {
     backgroundColor: "#FFFFFF",

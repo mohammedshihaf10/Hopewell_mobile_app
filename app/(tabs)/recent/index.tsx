@@ -1,9 +1,45 @@
-import { useMemo } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import { useCallback, useMemo } from "react";
+import {
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 
+import { useGetChargingSessionsQuery } from "@/charging/charging.api";
 import { IconSymbol } from "components/ui/icon-symbol";
-import { ChargingSession, SESSIONS } from "src/data/charging-sessions";
+
+const formatDateTime = (value: string | null) => {
+  if (!value) return "--";
+  const normalized = value.includes("T") ? value : value.replace(" ", "T");
+  const parsed = new Date(normalized);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+  const day = parsed.toLocaleString("en-GB", { day: "2-digit" });
+  const month = parsed.toLocaleString("en-GB", { month: "short" });
+  const time = parsed.toLocaleString("en-GB", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${day} ${month}, ${time.toUpperCase()}`;
+};
+
+type ChargingSessionItem = {
+  id: string;
+  charger_id: string;
+  connector_id: number;
+  start_time: string;
+  end_time: string | null;
+  energy_kwh: number;
+  cost: number;
+  status: string;
+};
 
 type RecentProps = {
   showHeader?: boolean;
@@ -17,45 +53,101 @@ export function RecentContent({
   withContainer = true,
 }: RecentProps) {
   const router = useRouter();
-  const liveSession = useMemo(
-    () => SESSIONS.find((session) => session.isLive),
-    []
+  const {
+    data: activeSessions,
+    isError: activeError,
+    error: activeErrorData,
+    refetch,
+    isFetching,
+  } = useGetChargingSessionsQuery(
+    {
+      status: "all",
+    },
+    {
+      refetchOnMountOrArgChange: true,
+      refetchOnFocus: true,
+      refetchOnReconnect: true,
+    },
   );
-  const pastSessions = useMemo(
-    () => SESSIONS.filter((session) => !session.isLive),
-    []
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch]),
+  );
+  const sessions = useMemo(
+    () => (Array.isArray(activeSessions) ? activeSessions : []),
+    [activeSessions],
+  );
+  const liveSession = useMemo(
+    () => sessions.find((session) => session.status === "charging"),
+    [sessions],
+  );
+  const liveFields = useMemo(() => {
+    if (!liveSession) {
+      return null;
+    }
+    return {
+      startedAt: liveSession.start_time,
+      stationName: liveSession.charger_id,
+      location: `Connector ${liveSession.connector_id}`,
+      energyKwh: liveSession.energy_kwh,
+      durationMin: Math.max(
+        0,
+        Math.round(
+          (Date.now() - new Date(liveSession.start_time).getTime()) / 60000,
+        ),
+      ),
+      batteryStartPct: undefined,
+      batteryEndPct: undefined,
+    };
+  }, [liveSession]);
+  const listSessions = useMemo(
+    () => sessions.filter((session) => session.id !== liveSession?.id),
+    [sessions, liveSession?.id],
   );
 
   const openDetails = (sessionId: string) => {
     router.push({ pathname: "/recent/[id]", params: { id: sessionId } });
   };
 
-  const renderSession = (item: ChargingSession) => (
+  const renderSession = (item: ChargingSessionItem) => {
+    const durationMin = Math.max(
+      0,
+      Math.round(
+        ((item.end_time ? new Date(item.end_time) : new Date()).getTime() -
+          new Date(item.start_time).getTime()) /
+          60000,
+      ),
+    );
+    const title =
+      item.status === "charging" ? "Live Charging" : "Charging Session";
+    return (
     <Pressable onPress={() => openDetails(item.id)} style={styles.card}>
       <View style={styles.cardRow}>
         <View style={styles.iconWrap}>
           <IconSymbol name="charger.fill" size={24} color="#FFFFFF" />
         </View>
         <View style={styles.cardBody}>
-          <Text style={styles.cardTitle}>{item.title}</Text>
+          <Text style={styles.cardTitle}>{title}</Text>
           <Text style={styles.cardMeta}>
-            {item.stationName} • {item.location}
+            {item.charger_id} • Connector {item.connector_id}
           </Text>
           <View style={styles.cardFoot}>
-            <Text style={styles.cardValue}>{item.energyKwh} kWh</Text>
+            <Text style={styles.cardValue}>{item.energy_kwh} kWh</Text>
             <Text style={styles.cardDot}>•</Text>
-            <Text style={styles.cardValue}>${item.cost.toFixed(2)}</Text>
+            <Text style={styles.cardValue}>₹{item.cost.toFixed(2)}</Text>
             <Text style={styles.cardDot}>•</Text>
-            <Text style={styles.cardValue}>{item.durationMin} min</Text>
+            <Text style={styles.cardValue}>{durationMin} min</Text>
           </View>
         </View>
       </View>
       <Text style={styles.cardTime}>
-        {item.startedAt}
-        {item.endedAt ? ` - ${item.endedAt}` : ""}
+        {formatDateTime(item.start_time)}
+        {item.end_time ? ` - ${formatDateTime(item.end_time)}` : ""}
       </Text>
     </Pressable>
-  );
+    );
+  };
 
   const content = (
     <>
@@ -67,15 +159,18 @@ export function RecentContent({
       ) : null}
 
       <FlatList
-        data={pastSessions}
+        data={listSessions}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl refreshing={isFetching} onRefresh={refetch} />
+        }
         ListHeaderComponent={
-          liveSession ? (
+          liveFields ? (
             <View style={styles.liveWrap}>
               <Text style={styles.sectionLabel}>Live now</Text>
               <Pressable
-                onPress={() => openDetails(liveSession.id)}
+                onPress={() => openDetails(liveSession?.id ?? "")}
                 style={styles.liveCard}
               >
                 <View style={styles.liveHeader}>
@@ -83,28 +178,30 @@ export function RecentContent({
                     <View style={styles.liveDot} />
                     <Text style={styles.liveBadgeText}>Charging</Text>
                   </View>
-                  <Text style={styles.liveTime}>{liveSession.startedAt}</Text>
+                  <Text style={styles.liveTime}>
+                    {formatDateTime(liveFields.startedAt)}
+                  </Text>
                 </View>
-                <Text style={styles.liveTitle}>{liveSession.stationName}</Text>
-                <Text style={styles.liveMeta}>{liveSession.location}</Text>
+                <Text style={styles.liveTitle}>{liveFields.stationName}</Text>
+                <Text style={styles.liveMeta}>{liveFields.location}</Text>
                 <View style={styles.liveStats}>
                   <View>
                     <Text style={styles.statLabel}>Energy</Text>
                     <Text style={styles.statValue}>
-                      {liveSession.energyKwh} kWh
+                      {liveFields.energyKwh} kWh
                     </Text>
                   </View>
                   <View>
                     <Text style={styles.statLabel}>Duration</Text>
                     <Text style={styles.statValue}>
-                      {liveSession.durationMin} min
+                      {liveFields.durationMin} min
                     </Text>
                   </View>
                   <View>
                     <Text style={styles.statLabel}>Battery</Text>
                     <Text style={styles.statValue}>
-                      {liveSession.batteryStartPct}% →{" "}
-                      {liveSession.batteryEndPct}%
+                      {liveFields.batteryStartPct ?? "--"}% →{" "}
+                      {liveFields.batteryEndPct ?? "--"}%
                     </Text>
                   </View>
                 </View>
@@ -114,7 +211,24 @@ export function RecentContent({
         }
         ListFooterComponent={
           <View style={styles.sectionFooter}>
-            <Text style={styles.sectionLabel}>Previous sessions</Text>
+            {activeError ? (
+              <Text style={styles.emptyText}>
+                {"status" in (activeErrorData as { status?: string | number })
+                  ? (
+                      activeErrorData as {
+                        status?: string | number;
+                        originalStatus?: number;
+                      }
+                    ).status === 404 ||
+                    (activeErrorData as { originalStatus?: number })
+                      .originalStatus === 404
+                    ? "No active sessions."
+                    : "Unable to load sessions."
+                  : "Unable to load sessions."}
+              </Text>
+            ) : (
+              <Text style={styles.emptyText}>No sessions yet.</Text>
+            )}
           </View>
         }
         renderItem={({ item }) => renderSession(item)}
@@ -127,7 +241,9 @@ export function RecentContent({
   }
 
   return (
-    <View style={[styles.container, { paddingTop: topPadding }]}>{content}</View>
+    <View style={[styles.container, { paddingTop: topPadding }]}>
+      {content}
+    </View>
   );
 }
 
@@ -167,6 +283,11 @@ const styles = StyleSheet.create({
   sectionFooter: {
     marginTop: 6,
     marginBottom: 10,
+  },
+  emptyText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#8B97B2",
   },
   liveWrap: {
     marginBottom: 12,
