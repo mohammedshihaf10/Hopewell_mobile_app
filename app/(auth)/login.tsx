@@ -70,7 +70,7 @@ export default function Login() {
     setIsSubmitting(true);
     try {
       await SecureStore.setItemAsync("pending_name", name.trim());
-      await fetch(`http://192.168.29.75:8080/auth/send-otp`, {
+      await fetch(`http://192.168.29.162:8080/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone_number: phone.trim() }),
@@ -96,7 +96,7 @@ export default function Login() {
     }
     setIsSubmitting(true);
     try {
-      const response = await fetch(`http://192.168.29.75:8080/auth/login`, {
+      const response = await fetch(`http://192.168.29.162:8080/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
