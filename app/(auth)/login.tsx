@@ -14,8 +14,7 @@ import { loginSuccess } from "@/features/auth/slice";
 import { useAppDispatch } from "@/store/hooks";
 import { IconSymbol } from "components/ui/icon-symbol";
 
-// const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "";
-const API_BASE_URL = "http://localhost:8080";
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "";
 
 type Step = "welcome" | "profile" | "otp";
 
@@ -70,11 +69,15 @@ export default function Login() {
     setIsSubmitting(true);
     try {
       await SecureStore.setItemAsync("pending_name", name.trim());
-      await fetch(`http://192.168.29.162:8080/auth/send-otp`, {
+      const response = await fetch(`${API_BASE_URL}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone_number: phone.trim() }),
       });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.message ?? "Failed to send OTP.");
+      }
       setStep("otp");
     } catch (err) {
       console.error(err);
@@ -96,7 +99,7 @@ export default function Login() {
     }
     setIsSubmitting(true);
     try {
-      const response = await fetch(`http://192.168.29.162:8080/auth/login`, {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -6,7 +6,7 @@ export async function prepareHeadersWithAuth(headers: Headers) {
   try {
     const accessToken = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
 
-    if (accessToken && accessToken.startsWith("ey")) {
+    if (accessToken && accessToken.trim().length > 0) {
       headers.set("Authorization", `Bearer ${accessToken}`);
     }
   } catch (error) {
