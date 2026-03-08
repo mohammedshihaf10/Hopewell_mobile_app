@@ -1,5 +1,6 @@
-import { Tabs, useRouter } from "expo-router";
+import { Redirect, Tabs, useRouter } from "expo-router";
 import { Platform, View } from "react-native";
+import { useAppSelector } from "@/store/hooks";
 
 import { HapticTab } from "components/haptic-tab";
 import { IconName } from "components/ui/icon-names";
@@ -71,9 +72,20 @@ function QRFloatingButton({ color }: { color: string }) {
  * Tabs layout (DEFAULT EXPORT)
  * ------------------------------------------- */
 export default function TabLayout() {
+  const { isAuthenticated, sessionHydrated } = useAppSelector(
+    (state) => state.auth,
+  );
   const router = useRouter();
   const tabAccent = "#2EC6C9";
   const tabInactive = "#8B97B2";
+
+  if (!sessionHydrated) {
+    return null;
+  }
+
+  if (!isAuthenticated) {
+    return <Redirect href="/(auth)/login" />;
+  }
 
   return (
     <Tabs

@@ -3,33 +3,41 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Stack } from "expo-router";
+import * as SecureStore from "expo-secure-store";
 import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
 
+import { restoreSession } from "@/features/auth/slice";
 import { store } from "@/store";
+import { useAppDispatch } from "@/store/hooks";
 import { Provider } from "react-redux";
 import "../global.css";
 import { useColorScheme } from "../hooks/use-color-scheme";
-import { useAppSelector } from "@/store/hooks";
-import { useEffect } from "react";
 
-function AuthGuard() {
-  const router = useRouter();
-  const segments = useSegments();
-  const isAuthenticated = useAppSelector(
-    (state) => state.auth.isAuthenticated,
-  );
-
-  const inAuthGroup = segments[0] === "(auth)";
+function SessionBootstrap() {
+  const dispatch = useAppDispatch();
 
   useEffect(() => {
-    if (!isAuthenticated && !inAuthGroup) {
-      router.replace("/(auth)/login");
-    }
-    if (isAuthenticated && inAuthGroup) {
-      router.replace("/(tabs)/map");
-    }
-  }, [inAuthGroup, isAuthenticated, router]);
+    let isMounted = true;
+
+    const bootstrapSession = async () => {
+      const accessToken = await SecureStore.getItemAsync("auth_access_token");
+      const refreshToken = await SecureStore.getItemAsync("auth_refresh_token");
+
+      if (!isMounted) return;
+      dispatch(restoreSession(Boolean(accessToken && refreshToken)));
+    };
+
+    bootstrapSession().catch(() => {
+      if (!isMounted) return;
+      dispatch(restoreSession(false));
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [dispatch]);
 
   return null;
 }
@@ -40,12 +48,9 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <Provider store={store}>
-        <AuthGuard />
+        <SessionBootstrap />
         <Stack>
-          <Stack.Screen
-            name="(auth)"
-            options={{ headerShown: false }}
-          />
+          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen
             name="(tabs)"
             options={{ headerShown: false, title: "Explore" }}

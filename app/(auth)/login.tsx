@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -27,34 +27,10 @@ export default function Login() {
   const [otp, setOtp] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [hasSession, setHasSession] = useState(false);
 
   const phoneValid = useMemo(() => phone.trim().length >= 10, [phone]);
   const nameValid = useMemo(() => name.trim().length >= 2, [name]);
   const otpValid = useMemo(() => otp.trim().length >= 4, [otp]);
-
-  useEffect(() => {
-    let isMounted = true;
-    const loadSession = async () => {
-      const accessToken = await SecureStore.getItemAsync("auth_access_token");
-      const refreshToken = await SecureStore.getItemAsync("auth_refresh_token");
-      if (isMounted) {
-        setHasSession(!!accessToken && !!refreshToken);
-      }
-    };
-    loadSession();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!hasSession) return;
-    const timer = setTimeout(() => {
-      router.replace("/(tabs)/map");
-    }, 900);
-    return () => clearTimeout(timer);
-  }, [hasSession, router]);
 
   const sendOtp = async () => {
     setError("");
@@ -143,12 +119,10 @@ export default function Login() {
 
         <Pressable
           style={styles.button}
-          onPress={() => setStep(hasSession ? "welcome" : "profile")}
+          onPress={() => setStep("profile")}
           disabled={isSubmitting}
         >
-          <Text style={styles.buttonText}>
-            {hasSession ? "Continue" : "Get started"}
-          </Text>
+          <Text style={styles.buttonText}>Get started</Text>
         </Pressable>
       </View>
     );
