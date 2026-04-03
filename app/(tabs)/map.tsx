@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -9,8 +10,8 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { WebView } from "react-native-webview";
 import { useFocusEffect } from "@react-navigation/native";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 
 import { useGetWalletBalanceQuery } from "@/wallet/wallet.api";
 import { IconSymbol } from "components/ui/icon-symbol";
@@ -26,6 +27,8 @@ type Station = {
   connectors: string;
   power: string;
   price: string;
+  latitude: number;
+  longitude: number;
 };
 
 const STATIONS: Record<"nearby" | "previous" | "favorites", Station[]> = {
@@ -40,6 +43,8 @@ const STATIONS: Record<"nearby" | "previous" | "favorites", Station[]> = {
       connectors: "CCS2 · Type 2",
       power: "Up to 120 kW",
       price: "₹16.5 / kWh",
+      latitude: 12.9716,
+      longitude: 77.5946,
     },
 
     {
@@ -52,6 +57,8 @@ const STATIONS: Record<"nearby" | "previous" | "favorites", Station[]> = {
       connectors: "Type 2 AC",
       power: "Up to 22 kW",
       price: "₹11.0 / kWh",
+      latitude: 12.9784,
+      longitude: 77.6068,
     },
     {
       id: "3",
@@ -63,6 +70,8 @@ const STATIONS: Record<"nearby" | "previous" | "favorites", Station[]> = {
       connectors: "CCS2 · Type 2",
       power: "Up to 120 kW",
       price: "₹16.5 / kWh",
+      latitude: 12.9648,
+      longitude: 77.5853,
     },
     {
       id: "4",
@@ -74,6 +83,8 @@ const STATIONS: Record<"nearby" | "previous" | "favorites", Station[]> = {
       connectors: "CCS2 · Type 2",
       power: "Up to 120 kW",
       price: "₹16.5 / kWh",
+      latitude: 12.9861,
+      longitude: 77.5733,
     },
   ],
   previous: [
@@ -87,6 +98,8 @@ const STATIONS: Record<"nearby" | "previous" | "favorites", Station[]> = {
       connectors: "CCS1",
       power: "Up to 60 kW",
       price: "₹14.0 / kWh",
+      latitude: 12.9516,
+      longitude: 77.6014,
     },
   ],
   favorites: [
@@ -100,6 +113,8 @@ const STATIONS: Record<"nearby" | "previous" | "favorites", Station[]> = {
       connectors: "Type 2 · GB/T AC",
       power: "Up to 30 kW",
       price: "₹12.0 / kWh",
+      latitude: 12.9932,
+      longitude: 77.6198,
     },
   ],
 };
@@ -120,9 +135,14 @@ export default function MapScreen() {
   const { data: walletData, refetch: refetchWallet } =
     useGetWalletBalanceQuery();
   const stations = useMemo(() => STATIONS[activeTab], [activeTab]);
-  const selectedStation = useMemo(
-    () => stations.find((station) => station.id === selectedStationId) ?? null,
-    [stations, selectedStationId],
+  const initialRegion = useMemo(
+    () => ({
+      latitude: 12.9716,
+      longitude: 77.5946,
+      latitudeDelta: 0.08,
+      longitudeDelta: 0.08,
+    }),
+    [],
   );
 
   useFocusEffect(
@@ -130,6 +150,13 @@ export default function MapScreen() {
       refetchWallet();
     }, [refetchWallet]),
   );
+
+  const openDirections = useCallback((station: Station) => {
+    const label = encodeURIComponent(station.name);
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${station.latitude},${station.longitude}&query=${label}`;
+
+    Linking.openURL(url);
+  }, []);
 
   const toggleLike = (id: string) => {
     setLikedStations((prev) =>
@@ -140,33 +167,28 @@ export default function MapScreen() {
   return (
     <View style={styles.container}>
       {/* ---------------- Map ---------------- */}
-      <WebView
+      <MapView
+        provider={PROVIDER_GOOGLE}
         style={StyleSheet.absoluteFillObject}
-        source={{
-          html: `<!doctype html>
-<html>
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    />
-    <style>
-      html, body, #map { height: 100%; margin: 0; padding: 0; }
-      .leaflet-control-attribution { display: none; }
-    </style>
-  </head>
-  <body>
-    <div id="map"></div>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-      const map = L.map('map', { zoomControl: false }).setView([12.9716, 77.5946], 6);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-    </script>
-  </body>
-</html>`,
-        }}
-      />
+        initialRegion={initialRegion}
+        showsUserLocation
+        showsCompass={false}
+        toolbarEnabled={false}
+      >
+        {stations.map((station) => (
+          <Marker
+            key={station.id}
+            coordinate={{
+              latitude: station.latitude,
+              longitude: station.longitude,
+            }}
+            title={station.name}
+            description={station.address}
+            pinColor={selectedStationId === station.id ? "#0F6A6A" : "#E0586A"}
+            onPress={() => setSelectedStationId(station.id)}
+          />
+        ))}
+      </MapView>
 
       {/* ---------------- Top Overlay ---------------- */}
       <View style={styles.topOverlay} pointerEvents="box-none">
@@ -274,7 +296,10 @@ export default function MapScreen() {
                         color={isLiked ? "#E0586A" : "#6C7CA6"}
                       />
                     </Pressable>
-                    <Pressable style={styles.circleIcon}>
+                    <Pressable
+                      style={styles.circleIcon}
+                      onPress={() => openDirections(station)}
+                    >
                       <IconSymbol name="directions" size={14} color="#0F6A6A" />
                     </Pressable>
                     <Pressable
