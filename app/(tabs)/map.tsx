@@ -1,3 +1,5 @@
+import { useFocusEffect } from "@react-navigation/native";
+import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -10,8 +12,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import { WebView } from "react-native-webview";
 
 import { useGetWalletBalanceQuery } from "@/wallet/wallet.api";
 import { IconSymbol } from "components/ui/icon-symbol";
@@ -121,6 +122,10 @@ const STATIONS: Record<"nearby" | "previous" | "favorites", Station[]> = {
 
 export default function MapScreen() {
   const router = useRouter();
+  const googleMapsApiKey =
+    Constants.expoConfig?.extra?.googleMapsApiKey ??
+    Constants.manifest2?.extra?.expoClient?.extra?.googleMapsApiKey ??
+    "";
   const [activeTab, setActiveTab] = useState<
     "nearby" | "previous" | "favorites"
   >("nearby");
@@ -135,15 +140,77 @@ export default function MapScreen() {
   const { data: walletData, refetch: refetchWallet } =
     useGetWalletBalanceQuery();
   const stations = useMemo(() => STATIONS[activeTab], [activeTab]);
-  const initialRegion = useMemo(
-    () => ({
-      latitude: 12.9716,
-      longitude: 77.5946,
-      latitudeDelta: 0.08,
-      longitudeDelta: 0.08,
-    }),
-    [],
-  );
+  const mapHtml = useMemo(() => {
+    const markerData = JSON.stringify(
+      stations.map((station) => ({
+        id: station.id,
+        name: station.name,
+        address: station.address,
+        latitude: station.latitude,
+        longitude: station.longitude,
+      })),
+    );
+
+    if (!googleMapsApiKey) {
+      return `<!doctype html>
+<html>
+  <body style="margin:0;display:flex;align-items:center;justify-content:center;background:#F3F6FB;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+    <div style="padding:24px;text-align:center;color:#13233D;">
+      Google Maps API key is missing.
+    </div>
+  </body>
+</html>`;
+    }
+
+    return `<!doctype html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <style>
+      html, body, #map { height: 100%; margin: 0; padding: 0; }
+      .gm-style-cc { display: none; }
+    </style>
+    <script>
+      const markers = ${markerData};
+
+      function initMap() {
+        const center = { lat: 12.9716, lng: 77.5946 };
+        const map = new google.maps.Map(document.getElementById("map"), {
+          center,
+          zoom: 12,
+          disableDefaultUI: true,
+          zoomControl: true,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: false,
+        });
+
+        markers.forEach((station) => {
+          const marker = new google.maps.Marker({
+            map,
+            position: { lat: station.latitude, lng: station.longitude },
+            title: station.name,
+          });
+
+          const infoWindow = new google.maps.InfoWindow({
+            content: '<div style="padding:6px 8px;font-family:Arial,sans-serif;"><strong>' +
+              station.name +
+              '</strong><br />' +
+              station.address +
+              '</div>',
+          });
+
+          marker.addListener("click", () => infoWindow.open({ anchor: marker, map }));
+        });
+      }
+    </script>
+    <script async src="https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&callback=initMap"></script>
+  </head>
+  <body>
+    <div id="map"></div>
+  </body>
+</html>`;
+  }, [googleMapsApiKey, stations]);
 
   useFocusEffect(
     useCallback(() => {
@@ -167,28 +234,13 @@ export default function MapScreen() {
   return (
     <View style={styles.container}>
       {/* ---------------- Map ---------------- */}
-      <MapView
-        provider={PROVIDER_GOOGLE}
+      <WebView
         style={StyleSheet.absoluteFillObject}
-        initialRegion={initialRegion}
-        showsUserLocation
-        showsCompass={false}
-        toolbarEnabled={false}
-      >
-        {stations.map((station) => (
-          <Marker
-            key={station.id}
-            coordinate={{
-              latitude: station.latitude,
-              longitude: station.longitude,
-            }}
-            title={station.name}
-            description={station.address}
-            pinColor={selectedStationId === station.id ? "#0F6A6A" : "#E0586A"}
-            onPress={() => setSelectedStationId(station.id)}
-          />
-        ))}
-      </MapView>
+        source={{ html: mapHtml }}
+        originWhitelist={["*"]}
+        javaScriptEnabled
+        domStorageEnabled
+      />
 
       {/* ---------------- Top Overlay ---------------- */}
       <View style={styles.topOverlay} pointerEvents="box-none">
