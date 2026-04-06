@@ -1,8 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import * as SecureStore from "expo-secure-store";
 
 import { IconSymbol } from "components/ui/icon-symbol";
+import { clearStoredSession } from "@/auth/session";
 import { useLogoutMutation } from "@/auth/auth.api";
 import { logout as logoutAction } from "@/features/auth/slice";
 import { useAppDispatch } from "@/store/hooks";
@@ -18,8 +18,7 @@ export default function Logout() {
     } catch {
       // Backend may fail; still clear local session.
     } finally {
-      await SecureStore.deleteItemAsync("auth_access_token");
-      await SecureStore.deleteItemAsync("auth_refresh_token");
+      await clearStoredSession();
       dispatch(logoutAction());
       router.replace("/(auth)/login");
     }

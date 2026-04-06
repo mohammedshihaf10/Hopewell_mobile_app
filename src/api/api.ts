@@ -5,10 +5,10 @@ import {
   createApi,
   fetchBaseQuery,
 } from "@reduxjs/toolkit/query/react";
-import * as SecureStore from "expo-secure-store";
 
 import { prepareHeadersWithAuth } from "./prepareHeadersAuth";
 import { logout } from "@/features/auth/slice";
+import { clearStoredSession } from "@/auth/session";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "";
 
@@ -26,8 +26,7 @@ const baseQueryWithAuthHandling: BaseQueryFn<
 
   if (result.error?.status === 401) {
     try {
-      await SecureStore.deleteItemAsync("auth_access_token");
-      await SecureStore.deleteItemAsync("auth_refresh_token");
+      await clearStoredSession();
     } finally {
       api.dispatch(logout());
     }

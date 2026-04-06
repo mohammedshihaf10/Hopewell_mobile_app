@@ -10,6 +10,13 @@ import {
   View,
 } from "react-native";
 
+import {
+  ACCESS_TOKEN_KEY,
+  PENDING_NAME_KEY,
+  REFRESH_TOKEN_KEY,
+  USER_NAME_KEY,
+  USER_PHONE_KEY,
+} from "@/auth/session";
 import { loginSuccess } from "@/features/auth/slice";
 import { useAppDispatch } from "@/store/hooks";
 import { IconSymbol } from "components/ui/icon-symbol";
@@ -44,7 +51,7 @@ export default function Login() {
     }
     setIsSubmitting(true);
     try {
-      await SecureStore.setItemAsync("pending_name", name.trim());
+      await SecureStore.setItemAsync(PENDING_NAME_KEY, name.trim());
       const response = await fetch(`${API_BASE_URL}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -89,13 +96,10 @@ export default function Login() {
         throw new Error(payload?.message ?? "Login failed.");
       }
       console.log("Login payload:", payload);
-      await SecureStore.setItemAsync("auth_access_token", payload.access_token);
-      await SecureStore.setItemAsync(
-        "auth_refresh_token",
-        payload.refresh_token,
-      );
-      await SecureStore.setItemAsync("user_name", name.trim());
-      await SecureStore.setItemAsync("user_phone", phone.trim());
+      await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, payload.access_token);
+      await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, payload.refresh_token);
+      await SecureStore.setItemAsync(USER_NAME_KEY, name.trim());
+      await SecureStore.setItemAsync(USER_PHONE_KEY, phone.trim());
       dispatch(loginSuccess());
       router.replace("/(tabs)/map");
     } catch (err) {

@@ -4,10 +4,10 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 import { Stack } from "expo-router";
-import * as SecureStore from "expo-secure-store";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 
+import { clearStoredSession, validateStoredSession } from "@/auth/session";
 import { restoreSession } from "@/features/auth/slice";
 import { store } from "@/store";
 import { useAppDispatch } from "@/store/hooks";
@@ -22,14 +22,18 @@ function SessionBootstrap() {
     let isMounted = true;
 
     const bootstrapSession = async () => {
-      const accessToken = await SecureStore.getItemAsync("auth_access_token");
-      const refreshToken = await SecureStore.getItemAsync("auth_refresh_token");
+      const isValid = await validateStoredSession();
+
+      if (!isValid) {
+        await clearStoredSession();
+      }
 
       if (!isMounted) return;
-      dispatch(restoreSession(Boolean(accessToken && refreshToken)));
+      dispatch(restoreSession(isValid));
     };
 
     bootstrapSession().catch(() => {
+      clearStoredSession().catch(() => undefined);
       if (!isMounted) return;
       dispatch(restoreSession(false));
     });

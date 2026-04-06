@@ -1,6 +1,5 @@
 import * as SecureStore from "expo-secure-store";
-
-const ACCESS_TOKEN_KEY = "auth_access_token";
+import { ACCESS_TOKEN_KEY } from "@/auth/session";
 
 export async function prepareHeadersWithAuth(headers: Headers) {
   try {
