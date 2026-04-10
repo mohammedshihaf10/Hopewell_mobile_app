@@ -60,15 +60,16 @@ export const chargingApi = api.injectEndpoints({
         body,
       }),
     }),
-    startCharging: builder.mutation<StartChargingResponse, StartChargingRequest>(
-      {
-        query: (body) => ({
-          url: "/charging/start",
-          method: "POST",
-          body,
-        }),
-      }
-    ),
+    startCharging: builder.mutation<
+      StartChargingResponse,
+      StartChargingRequest
+    >({
+      query: (body) => ({
+        url: "/charging/start",
+        method: "POST",
+        body,
+      }),
+    }),
     stopCharging: builder.mutation<StopChargingResponse, StopChargingRequest>({
       query: (body) => ({
         url: "/charging/stop",

@@ -4,6 +4,7 @@ const googleMapsApiKey = process.env.EXPO_GOOGLE_MAPS_API_KEY;
 
 module.exports = {
   ...expo,
+  plugins: [...(expo.plugins ?? []), "expo-font"],
   extra: {
     ...expo.extra,
     googleMapsApiKey,

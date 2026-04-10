@@ -1,8 +1,8 @@
+import { useFocusEffect } from "@react-navigation/native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
 
 export default function QRScreen() {
   const router = useRouter();
@@ -37,6 +37,10 @@ export default function QRScreen() {
 
   const handleManualSubmit = () => {
     const chargerId = manualChargerId.trim();
+    console.log("Manual submit:", {
+      chargerId,
+      connectorId: manualConnectorId.trim(),
+    });
     if (!chargerId) {
       return;
     }
@@ -106,8 +110,8 @@ export default function QRScreen() {
             placeholder="Charger ID"
             value={manualChargerId}
             onChangeText={setManualChargerId}
-            autoCapitalize="characters"
             style={styles.input}
+            autoCapitalize="none"
           />
           <TextInput
             placeholder="Connector ID (optional)"

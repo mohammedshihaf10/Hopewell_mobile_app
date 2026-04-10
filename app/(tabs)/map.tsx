@@ -12,113 +12,24 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { WebView } from "react-native-webview";
+import { WebView, WebViewMessageEvent } from "react-native-webview";
 
+import {
+  ChargingStationMapItem,
+  useGetChargingStationsQuery,
+} from "@/charging/stations.api";
 import { useGetWalletBalanceQuery } from "@/wallet/wallet.api";
 import { IconSymbol } from "components/ui/icon-symbol";
 import { WalletContent } from "./profile/wallet";
 
-type Station = {
-  id: string;
-  name: string;
-  address: string;
-  distanceKm: number;
-  openUntil: string;
-  tags: string[];
-  connectors: string;
-  power: string;
-  price: string;
-  latitude: number;
-  longitude: number;
+type StationTab = "all" | "available" | "favorites";
+
+type MarkerPayload = {
+  type: "stationPress";
+  stationId: string;
 };
 
-const STATIONS: Record<"nearby" | "previous" | "favorites", Station[]> = {
-  nearby: [
-    {
-      id: "1",
-      name: "VoltWay - Valley Brook",
-      address: "465 Valleybrook Rd, Midtown",
-      distanceKm: 2.4,
-      openUntil: "5:00 PM",
-      tags: ["CCS2", "Public", "Fast"],
-      connectors: "CCS2 · Type 2",
-      power: "Up to 120 kW",
-      price: "₹16.5 / kWh",
-      latitude: 12.9716,
-      longitude: 77.5946,
-    },
-
-    {
-      id: "2",
-      name: "South Hills ChargeHub",
-      address: "301 S Hills Village, Bethel Park",
-      distanceKm: 2.8,
-      openUntil: "6:00 PM",
-      tags: ["Type 2", "Public"],
-      connectors: "Type 2 AC",
-      power: "Up to 22 kW",
-      price: "₹11.0 / kWh",
-      latitude: 12.9784,
-      longitude: 77.6068,
-    },
-    {
-      id: "3",
-      name: "VoltWay - Valley Brook",
-      address: "465 Valleybrook Rd, Midtown",
-      distanceKm: 2.4,
-      openUntil: "5:00 PM",
-      tags: ["CCS2", "Public", "Fast"],
-      connectors: "CCS2 · Type 2",
-      power: "Up to 120 kW",
-      price: "₹16.5 / kWh",
-      latitude: 12.9648,
-      longitude: 77.5853,
-    },
-    {
-      id: "4",
-      name: "VoltWay - Valley Brook",
-      address: "465 Valleybrook Rd, Midtown",
-      distanceKm: 2.4,
-      openUntil: "5:00 PM",
-      tags: ["CCS2", "Public", "Fast"],
-      connectors: "CCS2 · Type 2",
-      power: "Up to 120 kW",
-      price: "₹16.5 / kWh",
-      latitude: 12.9861,
-      longitude: 77.5733,
-    },
-  ],
-  previous: [
-    {
-      id: "3",
-      name: "Electra - Upper St. Clair",
-      address: "201 S Hills Village, Pittsburgh",
-      distanceKm: 2.9,
-      openUntil: "8:00 PM",
-      tags: ["CCS1", "Paid"],
-      connectors: "CCS1",
-      power: "Up to 60 kW",
-      price: "₹14.0 / kWh",
-      latitude: 12.9516,
-      longitude: 77.6014,
-    },
-  ],
-  favorites: [
-    {
-      id: "4",
-      name: "McMurray EV Central",
-      address: "450 McMurray Rd, McMurray",
-      distanceKm: 3.6,
-      openUntil: "9:00 PM",
-      tags: ["Type 2", "Favorite"],
-      connectors: "Type 2 · GB/T AC",
-      power: "Up to 30 kW",
-      price: "₹12.0 / kWh",
-      latitude: 12.9932,
-      longitude: 77.6198,
-    },
-  ],
-};
+const DEFAULT_MAP_CENTER = { latitude: 12.9716, longitude: 77.5946 };
 
 export default function MapScreen() {
   const router = useRouter();
@@ -126,30 +37,83 @@ export default function MapScreen() {
     Constants.expoConfig?.extra?.googleMapsApiKey ??
     Constants.manifest2?.extra?.expoClient?.extra?.googleMapsApiKey ??
     "";
-  const [activeTab, setActiveTab] = useState<
-    "nearby" | "previous" | "favorites"
-  >("nearby");
+  const [activeTab, setActiveTab] = useState<StationTab>("all");
   const [selectedStationId, setSelectedStationId] = useState<string | null>(
     null,
   );
-  const [likedStations, setLikedStations] = useState<string[]>(["4"]);
-  const [infoStation, setInfoStation] = useState<Station | null>(null);
+  const [likedStations, setLikedStations] = useState<string[]>([]);
+  const [infoStation, setInfoStation] = useState<ChargingStationMapItem | null>(
+    null,
+  );
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [walletOpen, setWalletOpen] = useState(false);
   const { data: walletData, refetch: refetchWallet } =
     useGetWalletBalanceQuery();
-  const stations = useMemo(() => STATIONS[activeTab], [activeTab]);
+  const {
+    data: allStations = [],
+    isLoading,
+    isFetching,
+    refetch: refetchStations,
+  } = useGetChargingStationsQuery();
+
+  useFocusEffect(
+    useCallback(() => {
+      refetchWallet();
+      refetchStations();
+    }, [refetchStations, refetchWallet]),
+  );
+
+  const stations = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+
+    return allStations.filter((station) => {
+      const matchesTab =
+        activeTab === "all"
+          ? true
+          : activeTab === "available"
+            ? station.isAvailable
+            : likedStations.includes(station.id);
+
+      const matchesSearch =
+        normalizedQuery.length === 0
+          ? true
+          : `${station.name} ${station.address} ${station.id}`
+              .toLowerCase()
+              .includes(normalizedQuery);
+
+      return matchesTab && matchesSearch;
+    });
+  }, [activeTab, allStations, likedStations, searchQuery]);
+
+  const markers = useMemo(
+    () =>
+      stations.filter(
+        (station) =>
+          typeof station.latitude === "number" &&
+          typeof station.longitude === "number",
+      ),
+    [stations],
+  );
+
   const mapHtml = useMemo(() => {
     const markerData = JSON.stringify(
-      stations.map((station) => ({
+      markers.map((station) => ({
         id: station.id,
         name: station.name,
         address: station.address,
         latitude: station.latitude,
         longitude: station.longitude,
+        availabilityLabel: station.availabilityLabel,
+        color: station.isAvailable ? "#21B3A7" : "#E0586A",
       })),
     );
+    const center = markers[0]
+      ? {
+          latitude: markers[0].latitude ?? DEFAULT_MAP_CENTER.latitude,
+          longitude: markers[0].longitude ?? DEFAULT_MAP_CENTER.longitude,
+        }
+      : DEFAULT_MAP_CENTER;
 
     if (!googleMapsApiKey) {
       return `<!doctype html>
@@ -173,11 +137,20 @@ export default function MapScreen() {
     <script>
       const markers = ${markerData};
 
+      function postStationPress(stationId) {
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: "stationPress",
+            stationId
+          }));
+        }
+      }
+
       function initMap() {
-        const center = { lat: 12.9716, lng: 77.5946 };
+        const center = { lat: ${center.latitude}, lng: ${center.longitude} };
         const map = new google.maps.Map(document.getElementById("map"), {
           center,
-          zoom: 12,
+          zoom: markers.length > 0 ? 12 : 10,
           disableDefaultUI: true,
           zoomControl: true,
           mapTypeControl: false,
@@ -190,17 +163,17 @@ export default function MapScreen() {
             map,
             position: { lat: station.latitude, lng: station.longitude },
             title: station.name,
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              fillColor: station.color,
+              fillOpacity: 1,
+              strokeColor: "#FFFFFF",
+              strokeWeight: 2,
+              scale: 9,
+            },
           });
 
-          const infoWindow = new google.maps.InfoWindow({
-            content: '<div style="padding:6px 8px;font-family:Arial,sans-serif;"><strong>' +
-              station.name +
-              '</strong><br />' +
-              station.address +
-              '</div>',
-          });
-
-          marker.addListener("click", () => infoWindow.open({ anchor: marker, map }));
+          marker.addListener("click", () => postStationPress(station.id));
         });
       }
     </script>
@@ -210,15 +183,16 @@ export default function MapScreen() {
     <div id="map"></div>
   </body>
 </html>`;
-  }, [googleMapsApiKey, stations]);
+  }, [googleMapsApiKey, markers]);
 
-  useFocusEffect(
-    useCallback(() => {
-      refetchWallet();
-    }, [refetchWallet]),
-  );
+  const openDirections = useCallback((station: ChargingStationMapItem) => {
+    if (
+      typeof station.latitude !== "number" ||
+      typeof station.longitude !== "number"
+    ) {
+      return;
+    }
 
-  const openDirections = useCallback((station: Station) => {
     const label = encodeURIComponent(station.name);
     const url = `https://www.google.com/maps/dir/?api=1&destination=${station.latitude},${station.longitude}&query=${label}`;
 
@@ -231,18 +205,41 @@ export default function MapScreen() {
     );
   };
 
+  const handleMapMessage = useCallback(
+    (event: WebViewMessageEvent) => {
+      try {
+        const payload = JSON.parse(event.nativeEvent.data) as MarkerPayload;
+
+        if (payload.type !== "stationPress") {
+          return;
+        }
+
+        const station = allStations.find((item) => item.id === payload.stationId);
+
+        if (!station) {
+          return;
+        }
+
+        setSelectedStationId(station.id);
+        setInfoStation(station);
+      } catch {
+        // Ignore malformed marker messages from the embedded map.
+      }
+    },
+    [allStations],
+  );
+
   return (
     <View style={styles.container}>
-      {/* ---------------- Map ---------------- */}
       <WebView
         style={StyleSheet.absoluteFillObject}
         source={{ html: mapHtml }}
         originWhitelist={["*"]}
         javaScriptEnabled
         domStorageEnabled
+        onMessage={handleMapMessage}
       />
 
-      {/* ---------------- Top Overlay ---------------- */}
       <View style={styles.topOverlay} pointerEvents="box-none">
         <View style={styles.headerRow}>
           <View style={styles.searchCard}>
@@ -251,7 +248,7 @@ export default function MapScreen() {
                 <IconSymbol name="search" size={16} color="#6C7CA6" />
                 <TextInput
                   autoFocus
-                  placeholder="Search locations"
+                  placeholder="Search stations"
                   placeholderTextColor="#8B97B2"
                   value={searchQuery}
                   onChangeText={setSearchQuery}
@@ -265,7 +262,7 @@ export default function MapScreen() {
               >
                 <IconSymbol name="search" size={16} color="#6C7CA6" />
                 <Text style={styles.searchPlaceholderText}>
-                  Search locations
+                  Search stations
                 </Text>
               </Pressable>
             )}
@@ -295,7 +292,7 @@ export default function MapScreen() {
 
       <View style={styles.sheet}>
         <View style={styles.sheetTabs}>
-          {(["nearby", "previous", "favorites"] as const).map((tab) => (
+          {(["all", "available", "favorites"] as const).map((tab) => (
             <Pressable
               key={tab}
               onPress={() => setActiveTab(tab)}
@@ -307,10 +304,10 @@ export default function MapScreen() {
                   activeTab === tab && styles.sheetTabTextActive,
                 ]}
               >
-                {tab === "nearby"
-                  ? "Nearby"
-                  : tab === "previous"
-                    ? "Previous"
+                {tab === "all"
+                  ? "All"
+                  : tab === "available"
+                    ? "Available"
                     : "Favorites"}
               </Text>
               {activeTab === tab ? <View style={styles.tabLine} /> : null}
@@ -323,13 +320,30 @@ export default function MapScreen() {
           contentContainerStyle={styles.sheetContent}
           showsVerticalScrollIndicator
         >
+          {isLoading || isFetching ? (
+            <Text style={styles.emptyText}>Loading charging stations...</Text>
+          ) : null}
+
+          {!isLoading && !isFetching && stations.length === 0 ? (
+            <Text style={styles.emptyText}>
+              No charging stations match the current filters.
+            </Text>
+          ) : null}
+
           {stations.map((station) => {
             const isLiked = likedStations.includes(station.id);
             const isSelected = selectedStationId === station.id;
+            const hasCoordinates =
+              typeof station.latitude === "number" &&
+              typeof station.longitude === "number";
+
             return (
               <Pressable
                 key={station.id}
-                onPress={() => setSelectedStationId(station.id)}
+                onPress={() => {
+                  setSelectedStationId(station.id);
+                  setInfoStation(station);
+                }}
                 style={[
                   styles.stationCard,
                   isSelected && styles.stationCardSelected,
@@ -349,8 +363,12 @@ export default function MapScreen() {
                       />
                     </Pressable>
                     <Pressable
-                      style={styles.circleIcon}
+                      style={[
+                        styles.circleIcon,
+                        !hasCoordinates && styles.circleIconDisabled,
+                      ]}
                       onPress={() => openDirections(station)}
+                      disabled={!hasCoordinates}
                     >
                       <IconSymbol name="directions" size={14} color="#0F6A6A" />
                     </Pressable>
@@ -363,15 +381,33 @@ export default function MapScreen() {
                   </View>
                 </View>
                 <Text style={styles.stationAddress}>{station.address}</Text>
-                <Text style={styles.stationMeta}>
-                  {station.distanceKm} km · Open until {station.openUntil}
-                </Text>
+                <View style={styles.metaRow}>
+                  <Text
+                    style={[
+                      styles.statusBadge,
+                      station.isAvailable
+                        ? styles.statusBadgeAvailable
+                        : styles.statusBadgeUnavailable,
+                    ]}
+                  >
+                    {station.availabilityLabel}
+                  </Text>
+                  <Text style={styles.stationMeta}>{station.connectorSummary}</Text>
+                </View>
                 <View style={styles.tagRow}>
-                  {station.tags.map((tag) => (
-                    <View key={tag} style={styles.tag}>
-                      <Text style={styles.tagText}>{tag}</Text>
+                  <View style={styles.tag}>
+                    <Text style={styles.tagText}>{station.protocol}</Text>
+                  </View>
+                  <View style={styles.tag}>
+                    <Text style={styles.tagText}>
+                      {station.connectorCount} connectors
+                    </Text>
+                  </View>
+                  {!hasCoordinates ? (
+                    <View style={styles.tag}>
+                      <Text style={styles.tagText}>No map location</Text>
                     </View>
-                  ))}
+                  ) : null}
                 </View>
               </Pressable>
             );
@@ -400,23 +436,40 @@ export default function MapScreen() {
             </View>
             <Text style={styles.modalAddress}>{infoStation?.address}</Text>
             <View style={styles.modalRow}>
-              <Text style={styles.modalLabel}>Connectors</Text>
-              <Text style={styles.modalValue}>{infoStation?.connectors}</Text>
-            </View>
-            <View style={styles.modalRow}>
-              <Text style={styles.modalLabel}>Power</Text>
-              <Text style={styles.modalValue}>{infoStation?.power}</Text>
-            </View>
-            <View style={styles.modalRow}>
-              <Text style={styles.modalLabel}>Price</Text>
-              <Text style={styles.modalValue}>{infoStation?.price}</Text>
-            </View>
-            <View style={styles.modalRow}>
-              <Text style={styles.modalLabel}>Hours</Text>
+              <Text style={styles.modalLabel}>Status</Text>
               <Text style={styles.modalValue}>
-                Open until {infoStation?.openUntil}
+                {infoStation?.availabilityLabel ?? "Unknown"}
               </Text>
             </View>
+            <View style={styles.modalRow}>
+              <Text style={styles.modalLabel}>Connectors</Text>
+              <Text style={styles.modalValue}>
+                {infoStation?.connectorSummary ?? "Unknown"}
+              </Text>
+            </View>
+            <View style={styles.modalRow}>
+              <Text style={styles.modalLabel}>Protocol</Text>
+              <Text style={styles.modalValue}>
+                {infoStation?.protocol ?? "Unknown"}
+              </Text>
+            </View>
+            <Pressable
+              style={[
+                styles.directionButton,
+                (!infoStation ||
+                  typeof infoStation.latitude !== "number" ||
+                  typeof infoStation.longitude !== "number") &&
+                  styles.directionButtonDisabled,
+              ]}
+              onPress={() => infoStation && openDirections(infoStation)}
+              disabled={
+                !infoStation ||
+                typeof infoStation.latitude !== "number" ||
+                typeof infoStation.longitude !== "number"
+              }
+            >
+              <Text style={styles.directionButtonText}>Get Directions</Text>
+            </Pressable>
           </Pressable>
         </Pressable>
       </Modal>
@@ -439,17 +492,14 @@ export default function MapScreen() {
   );
 }
 
-/* ---------------- Styles ---------------- */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F3F6FB" },
-
   topOverlay: {
     position: "absolute",
     top: 40,
     left: 16,
     right: 16,
   },
-
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -515,30 +565,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#0F6A6A",
   },
-  filterButton: {
-    position: "absolute",
-    right: 20,
-    top: 190,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: "rgba(40, 92, 153, 0.12)",
-    shadowColor: "#0B2A5E",
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
-  },
-  filterText: {
-    marginLeft: 6,
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#1A2850",
-  },
   sheet: {
     position: "absolute",
     left: 0,
@@ -602,9 +628,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   stationName: {
+    flex: 1,
     fontSize: 15,
     fontWeight: "700",
     color: "#13233D",
+    paddingRight: 12,
   },
   stationActions: {
     flexDirection: "row",
@@ -620,10 +648,70 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  circleIconDisabled: {
+    opacity: 0.4,
+  },
   circleText: {
     fontSize: 12,
     fontWeight: "700",
     color: "#6C7CA6",
+  },
+  stationAddress: {
+    marginTop: 6,
+    fontSize: 12,
+    color: "#6C7CA6",
+    fontWeight: "600",
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  statusBadge: {
+    overflow: "hidden",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  statusBadgeAvailable: {
+    color: "#0F6A6A",
+    backgroundColor: "rgba(33, 179, 167, 0.14)",
+  },
+  statusBadgeUnavailable: {
+    color: "#A93F4D",
+    backgroundColor: "rgba(224, 88, 106, 0.14)",
+  },
+  stationMeta: {
+    marginLeft: 8,
+    fontSize: 12,
+    color: "#0F6A6A",
+    fontWeight: "600",
+  },
+  tagRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 8,
+  },
+  tag: {
+    backgroundColor: "#F1F6FF",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    marginRight: 8,
+    marginBottom: 6,
+  },
+  tagText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#62739A",
+  },
+  emptyText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#6C7CA6",
+    paddingVertical: 16,
   },
   modalBackdrop: {
     flex: 1,
@@ -642,9 +730,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalTitle: {
+    flex: 1,
     fontSize: 16,
     fontWeight: "700",
     color: "#13233D",
+    paddingRight: 12,
   },
   modalAddress: {
     marginTop: 6,
@@ -667,38 +757,24 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1A2850",
   },
+  directionButton: {
+    marginTop: 18,
+    backgroundColor: "#0F6A6A",
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+  },
+  directionButtonDisabled: {
+    opacity: 0.45,
+  },
+  directionButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
   walletModal: {
     flex: 1,
     backgroundColor: "#F3F6FB",
-  },
-  stationAddress: {
-    marginTop: 6,
-    fontSize: 12,
-    color: "#6C7CA6",
-    fontWeight: "600",
-  },
-  stationMeta: {
-    marginTop: 6,
-    fontSize: 12,
-    color: "#0F6A6A",
-    fontWeight: "600",
-  },
-  tagRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginTop: 8,
-  },
-  tag: {
-    backgroundColor: "#F1F6FF",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    marginRight: 8,
-    marginBottom: 6,
-  },
-  tagText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#62739A",
   },
 });
