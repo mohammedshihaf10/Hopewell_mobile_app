@@ -24,8 +24,13 @@ export default function QRResultScreen() {
   const [showStartError, setShowStartError] = useState(false);
   const [verifyCharger, { data, isLoading, error }] =
     useVerifyChargerMutation();
-  const [startCharging, { isLoading: isStarting }] =
-    useStartChargingMutation();
+  const [startCharging, { isLoading: isStarting }] = useStartChargingMutation();
+
+  const normalizedStatus = data?.status?.toLowerCase();
+  const canStartCharging =
+    verified &&
+    !!data &&
+    (normalizedStatus === "available" || normalizedStatus === "preparing");
 
   const decodedPayload = useMemo(() => {
     if (!payload) return "";
@@ -46,7 +51,9 @@ export default function QRResultScreen() {
       return {
         charger_id: json?.charger_id ? String(json.charger_id) : undefined,
         connector_id:
-          json?.connector_id !== undefined ? Number(json.connector_id) : undefined,
+          json?.connector_id !== undefined
+            ? Number(json.connector_id)
+            : undefined,
         location: json?.location ?? undefined,
         power_kw: json?.power_kw ? Number(json.power_kw) : undefined,
         charger_type: json?.charger_type ?? undefined,
@@ -145,9 +152,7 @@ export default function QRResultScreen() {
           <>
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Charger info</Text>
-              <Text style={styles.cardText}>
-                Charger: {data.charger_id}
-              </Text>
+              <Text style={styles.cardText}>Charger: {data.charger_id}</Text>
               <Text style={styles.cardText}>
                 Connector: {data.connector_id}
               </Text>
@@ -165,13 +170,13 @@ export default function QRResultScreen() {
               <Text style={styles.statusTitle}>Status</Text>
               <Text style={styles.statusText}>{data.status}</Text>
               <Text style={styles.statusHint}>
-                {data.available ? "Available to start." : "Not available."}
+                {canStartCharging ? "Available to start." : "Not available."}
               </Text>
             </View>
           </>
         ) : null}
 
-        {data?.available && verified ? (
+        {canStartCharging ? (
           <Pressable
             style={styles.primaryBtn}
             onPress={handleStartCharging}
@@ -224,7 +229,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#0F172A",
     marginBottom: 12,
-    paddingTop:24,
+    paddingTop: 24,
   },
   scanAgainButton: {
     alignSelf: "flex-start",
